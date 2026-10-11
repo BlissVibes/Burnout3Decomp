@@ -16,13 +16,17 @@ CLEAN = r"""[gpu] llvmpipe (LLVM 20.1.2, 256 bits)
 [ee] halted: frame limit reached
 [thread] 1 status 1 prio 1 wait 0/11 pc 0x0010C2F1 ra 0x0010C2E4
 [sema] 3 count 0 waiters 1
-[gs] 0 primitives drawn, register writes:
+[gs] 1523 primitives drawn, register writes:
 [dma] starts: ch0=0 ch1=0 ch2=0 ch3=0 ch4=0 ch5=0 ch6=0 ch7=0 ch8=0 ch9=0
 [gif] path 1 tags: packed 0 reglist 0 image 0
 [vif0]
 [vif1] 01:1 02:1 03:1 04:1 05:1 06:1 20:1
 [ee] stopped after 1800 frames, 10616841860 cycles: frame limit reached
 """
+
+# Headless run 002 really looked like this: 1800 frames, nothing drawn.
+NO_DRAW = CLEAN.replace('[gs] 1523 primitives drawn', '[gs] 0 primitives drawn')
+NO_GS_LINE = ''.join(line for line in CLEAN.splitlines(True) if not line.startswith('[gs]'))
 
 GAPPY = """[disc] disc: 834 files, 1400304 sectors, layer 1 at 0
 [sys] unhandled syscall 0x7A from 0x00123456
@@ -94,6 +98,39 @@ class ScanLogTest(unittest.TestCase):
         report = scan_log.scan("[zzz] new message\n[ee] stopped after 100 frames, 5 cycles: frame limit reached\n".splitlines(True))
         self.assertFalse(report.clean())
         self.assertIn('unknown tags: zzz', scan_log.render(report))
+
+    def test_a_frame_limit_run_that_drew_nothing_is_not_clean(self):
+        report = scan_log.scan(NO_DRAW.splitlines(True))
+        self.assertEqual(report.primitives, 0)
+        self.assertEqual(report.halted, None)
+        self.assertFalse(report.clean())
+        self.assertFalse(report.clean(expect_frames=1800))
+        text = scan_log.render(report, 1800)
+        for needle in ('primitives drawn: 0', 'result: GAPS'):
+            self.assertIn(needle, text)
+
+    def test_a_frame_limit_run_that_drew_is_clean(self):
+        report = scan_log.scan(CLEAN.splitlines(True))
+        self.assertEqual(report.primitives, 1523)
+        self.assertTrue(report.clean(expect_frames=1800))
+        self.assertFalse(report.clean(expect_frames=1800, min_primitives=2000))
+        self.assertIn('primitives drawn: 1523', scan_log.render(report, 1800))
+
+    def test_a_log_without_a_primitives_line_stays_clean(self):
+        report = scan_log.scan(NO_GS_LINE.splitlines(True))
+        self.assertEqual(report.primitives, None)
+        self.assertTrue(report.clean(expect_frames=1800))
+        self.assertIn('primitives drawn: unknown', scan_log.render(report, 1800))
+
+    def test_main_min_primitives(self):
+        import os, tempfile
+        with tempfile.NamedTemporaryFile('w', suffix='.log', delete=False) as f:
+            f.write(NO_DRAW)
+        try:
+            self.assertEqual(scan_log.main(['scan-log.py', f.name, '--expect-frames', '1800']), 1)
+            self.assertEqual(scan_log.main(['scan-log.py', f.name, '--expect-frames', '1800', '--min-primitives', '0']), 0)
+        finally:
+            os.unlink(f.name)
 
     def test_main_exit_codes(self):
         import io, os, tempfile
