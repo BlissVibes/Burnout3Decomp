@@ -660,6 +660,63 @@ Expected: 4 tests, `OK`.
 cd "$REPO" && git add tools/scan-log.py tests/test_scan_log.py && git commit -m "tools: headless run log scanner with tests"
 ```
 
+### Task 4b: Scanner gate hardening (from Opus 2's review)
+
+**Files:**
+- Modify: `tools/scan-log.py`
+- Modify: `tests/test_scan_log.py`
+
+**Interfaces:**
+- Produces: `scan-log.py <log> [--expect-frames N]`. `Report.clean(expect_frames=None)` is false when `frames is None` or `frames < expect_frames` (a log that just stops is not clean), and false when `unknown_tags` is non-empty (a new runtime message cannot pass silently; add real benign tags to `KNOWN_TAGS` as the first runs reveal them). `render` prints `frames reached: N of M` when an expectation is given.
+
+- [ ] **Step 1: Add failing tests**
+
+Append to `tests/test_scan_log.py` inside the class:
+```python
+    def test_a_log_that_just_stops_is_not_clean_when_frames_are_expected(self):
+        report = scan_log.scan(CLEAN.splitlines(True))          # reaches frame 3600
+        self.assertTrue(report.clean(expect_frames=3600))
+        self.assertFalse(report.clean(expect_frames=7200))
+        truncated = scan_log.scan(CLEAN.splitlines(True)[:2])    # no frame line at all
+        self.assertFalse(truncated.clean(expect_frames=3600))
+        self.assertTrue(truncated.clean())                       # no expectation given: old behaviour
+
+    def test_unknown_tags_make_the_run_not_clean(self):
+        report = scan_log.scan("[zzz] new message\n[ee] frame 100\n".splitlines(True))
+        self.assertFalse(report.clean())
+        self.assertIn('unknown tags: zzz', scan_log.render(report))
+
+    def test_main_exit_codes(self):
+        import io, os, tempfile
+        with tempfile.NamedTemporaryFile('w', suffix='.log', delete=False) as f:
+            f.write(CLEAN)
+        try:
+            self.assertEqual(scan_log.main(['scan-log.py', f.name]), 0)
+            self.assertEqual(scan_log.main(['scan-log.py', f.name, '--expect-frames', '3600']), 0)
+            self.assertEqual(scan_log.main(['scan-log.py', f.name, '--expect-frames', '9999']), 1)
+        finally:
+            os.unlink(f.name)
+```
+
+- [ ] **Step 2: Run to see them fail** — `python -m unittest tests.test_scan_log -v` → 3 failures (`clean() got an unexpected keyword`, exit code 0 instead of 1, etc.).
+
+- [ ] **Step 3: Implement**
+
+In `tools/scan-log.py`:
+```python
+    def clean(self, expect_frames=None):
+        if self.halted is not None or any(self.gaps.values()) or self.unknown_tags:
+            return False
+        if expect_frames is not None and (self.frames is None or self.frames < expect_frames):
+            return False
+        return True
+```
+`render(report, expect_frames=None)`: first line becomes `'frames reached: %s%s' % (frames or 'none', ' of %d' % expect_frames if expect_frames else '')`, and the last line uses `report.clean(expect_frames)`. `main`: parse `--expect-frames N` (int) from argv, pass it to `render` and to the exit decision. Also redirect `main`'s prints so the test can call it: keep `print` but it is harmless in tests.
+
+- [ ] **Step 4: Run tests** → 7 OK. **Step 5: Commit** `tools: scan-log gate requires expected frames and rejects unknown tags`.
+
+Task 5's wrapper then calls `python3 "$REPO/tools/scan-log.py" "$FORK/games/$NAME/explore.log" --expect-frames "$FRAMES"` where `FRAMES` defaults to 3600 and is set from a `--frames N` argument before the rest is passed through.
+
 ### Task 5: First headless port run
 
 **Files:**
@@ -691,12 +748,14 @@ python3 "$REPO/tools/verify-iso.py" "$ISO"
 # Headless runs in WSL have no reliable Vulkan device; PS2_GPU_FALLBACK lets the
 # runtime use the fallback adapter rather than fail (the fork reads it in gpu.cpp).
 export PS2_GPU_FALLBACK=1
+FRAMES=3600
+if [ "${1:-}" = "--frames" ]; then FRAMES="$2"; shift 2; fi
 cd "$FORK"
-scripts/port.sh "$NAME" "$ISO" "$@" 2>&1 | tee "$HOME/b3/out/port-$(date +%Y%m%d-%H%M%S).log"
+scripts/port.sh "$NAME" "$ISO" --frames "$FRAMES" "$@" 2>&1 | tee "$HOME/b3/out/port-$(date +%Y%m%d-%H%M%S).log"
 
 echo
 echo "== scan of the last exploring run"
-python3 "$REPO/tools/scan-log.py" "$FORK/games/$NAME/explore.log" || true
+python3 "$REPO/tools/scan-log.py" "$FORK/games/$NAME/explore.log" --expect-frames "$FRAMES" || true
 echo "frames in $FORK/games/$NAME/shots:"; ls "$FORK/games/$NAME/shots" | tail -5
 ```
 
@@ -1357,6 +1416,40 @@ Expected: 10 passing.
 ```bash
 cd "$REPO" && git add web/disc.js tests/disc.test.mjs && git commit -m "web: cache the disc in the Origin Private File System with an integrity marker"
 ```
+
+### Task 11b: Disc cache hardening (from Opus 2's review)
+
+**Files:**
+- Modify: `web/disc.js`
+- Modify: `tests/disc.test.mjs`
+
+**Interfaces:**
+- `cacheDisc` removes any existing `burnout3.iso` and `burnout3.ok` **before** the quota check, so replacing a cached disc on a tight drive is not refused for space the old copy holds.
+- `bootProgram` refuses a root directory larger than 256 KiB (`rootSize > 131072 * 2`) with `Error('not an ISO 9660 image (root directory too large)')`, so a corrupt image cannot make the page read the whole file.
+
+- [ ] **Step 1: Failing tests** — append to `tests/disc.test.mjs`:
+```js
+test('re-caching frees the old copy before checking quota', async () => {
+  // fake whose usage counts the bytes it holds
+  const storage = fakeStorage({ quota: 12000 });
+  const base = storage.estimate;
+  storage.estimate = async () => ({ quota: 12000, usage: [...storage.files.values()].flat().reduce((n, c) => n + (c.byteLength ?? c.size ?? 0), 0) });
+  await cacheDisc(new File([new Uint8Array(8000)], 'a.iso'), null, storage);
+  await cacheDisc(new File([new Uint8Array(9000)], 'b.iso'), null, storage);   // would fail if the 8000 still counted
+  assert.equal((await cachedDisc(storage)).size, 9000);
+});
+
+test('an absurd root directory size is rejected, not read', async () => {
+  const image = new Uint8Array(20 * SECTOR);
+  const pvd = image.subarray(16 * SECTOR, 17 * SECTOR);
+  pvd[0] = 1; pvd.set([67, 68, 48, 48, 49], 1); pvd[6] = 1;
+  pvd.set(u32le(18), 158); pvd.set(u32le(0x7fffffff), 166);
+  await assert.rejects(bootProgram(new Blob([image])), /root directory too large/);
+});
+```
+- [ ] **Step 2: Run** → the two new tests fail.
+- [ ] **Step 3: Implement** — in `cacheDisc`, move the `dir` lookup and a loop removing `MARKER_NAME` then `CACHE_NAME` (ignoring `NotFoundError`) to before `storage.estimate()`. In `bootProgram`, after reading `rootSize`: `if (rootSize > 262144) throw new Error('not an ISO 9660 image (root directory too large)');`.
+- [ ] **Step 4: Run** → 12 pass. **Step 5: Commit** `web: disc cache frees the old copy first; cap root directory reads`.
 
 ### Task 12: Wire the disc flow into the runtime and the page
 
