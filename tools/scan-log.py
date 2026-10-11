@@ -3,8 +3,11 @@
 
 usage: scan-log.py <explore.log> [--expect-frames N]
 Exit 0 when no runtime gap was logged and the EE did not halt, 1 otherwise.
-With --expect-frames N the run must also have reached frame N, so a log that
-just stops is not clean.
+The runtime ends every run with "[ee] halted: <reason>" and, after its
+statistics, "[ee] stopped after N frames, ...". The reason "frame limit
+reached" is the normal end and does not count as a halt. With --expect-frames N
+the run must also have stopped after at least N frames, so a log that just
+stops is not clean.
 The known gap strings come from ps2-web-recomp's runtime; any other
 "[tag] ..." line the scanner has not seen is listed under "unknown tags" and
 fails the run, so a new error string cannot pass silently.
@@ -21,15 +24,18 @@ PATTERNS = {
     'io_unsupported': re.compile(r'^\[io\] open (\S+) .* on unsupported device'),
 }
 HALT = re.compile(r'^\[ee\] halted: (.*)$')
+FRAME_LIMIT = 'frame limit reached'
 TAG = re.compile(r'^\[([a-z0-9]+)\]')
-KNOWN_TAGS = {'sys', 'iop', 'ipu', 'vu1', 'io', 'ee', 'disc', 'web', 'gpu', 'gs', 'spu2', 'dma', 'sif', 'mc', 'vu0', 'vif', 'cdvd', 'kernel', 'thread'}
-FRAME = re.compile(r'^\[ee\] frame (\d+)')
+KNOWN_TAGS = {'sys', 'iop', 'ipu', 'vu1', 'io', 'ee', 'disc', 'web', 'gpu', 'gs', 'spu2', 'dma', 'sif', 'mc', 'vu0', 'vif', 'cdvd', 'kernel', 'thread',
+              'frame', 'dmac', 'gif', 'sema', 'vif0', 'vif1'}
+STOPPED = re.compile(r'^\[ee\] stopped after (\d+) frames')
 
 
 class Report:
     def __init__(self):
         self.gaps = {key: collections.Counter() for key in PATTERNS}
         self.halted = None
+        self.frame_limit = False
         self.unknown_tags = collections.Counter()
         self.frames = None
 
@@ -47,11 +53,14 @@ def scan(lines):
         line = raw.rstrip('\r\n')
         halt = HALT.match(line)
         if halt:
-            report.halted = halt.group(1)
+            if halt.group(1) == FRAME_LIMIT:
+                report.frame_limit = True
+            else:
+                report.halted = halt.group(1)
             continue
-        frame = FRAME.match(line)
-        if frame:
-            report.frames = int(frame.group(1))
+        stopped = STOPPED.match(line)
+        if stopped:
+            report.frames = int(stopped.group(1))
             continue
         matched = False
         for key, pattern in PATTERNS.items():
@@ -72,7 +81,7 @@ def render(report, expect_frames=None):
     out = []
     total = sum(sum(c.values()) for c in report.gaps.values())
     out.append('frames reached: %s%s' % (report.frames if report.frames is not None else 'none', ' of %d' % expect_frames if expect_frames is not None else ''))
-    out.append('halted: %s' % (report.halted or 'no'))
+    out.append('halted: %s' % (report.halted or ('no (%s)' % FRAME_LIMIT if report.frame_limit else 'no')))
     out.append('gaps: %d distinct, %d total' % (sum(len(c) for c in report.gaps.values()), total))
     for key, counter in report.gaps.items():
         for site, count in counter.most_common():

@@ -5,12 +5,26 @@ spec = importlib.util.spec_from_file_location('scan_log', os.path.join(HERE, '..
 scan_log = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(scan_log)
 
-CLEAN = """[disc] disc: 1200 files, 1400304 sectors, layer 1 at 0
-[web] presenting through WebGPU
-[ee] frame 3600
+# Shaped like a real ps2run log (headless run 002): the run ends at the frame
+# limit, then the runtime prints its end-of-run statistics and the "stopped" line.
+CLEAN = r"""[gpu] llvmpipe (LLVM 20.1.2, 256 bits)
+[disc] disc: 834 files, 1400304 sectors, layer 1 at 0
+[mc] card in slot 1: /memcard/Mcd001.ps2 (new, unformatted)
+[sif] IOP reboot requested with "rom0:UDNL cdrom0:\IOP\DNAS280.IMG;1"
+[vu0] cfc2 28
+[frame] 25 prims 0
+[ee] halted: frame limit reached
+[thread] 1 status 1 prio 1 wait 0/11 pc 0x0010C2F1 ra 0x0010C2E4
+[sema] 3 count 0 waiters 1
+[gs] 0 primitives drawn, register writes:
+[dma] starts: ch0=0 ch1=0 ch2=0 ch3=0 ch4=0 ch5=0 ch6=0 ch7=0 ch8=0 ch9=0
+[gif] path 1 tags: packed 0 reglist 0 image 0
+[vif0]
+[vif1] 01:1 02:1 03:1 04:1 05:1 06:1 20:1
+[ee] stopped after 1800 frames, 10616841860 cycles: frame limit reached
 """
 
-GAPPY = """[disc] disc: 1200 files, 1400304 sectors, layer 1 at 0
+GAPPY = """[disc] disc: 834 files, 1400304 sectors, layer 1 at 0
 [sys] unhandled syscall 0x7A from 0x00123456
 [sys] unhandled syscall 0x7A from 0x00123456
 [iop] missing libsd #22 called from 0x000A1B2C
@@ -18,7 +32,10 @@ GAPPY = """[disc] disc: 1200 files, 1400304 sectors, layer 1 at 0
 [vu1] start at 0x40 through CMSAR1 (not implemented)
 [io] open host0:/foo (flags 0x1) on unsupported device
 [zzz] something new the scanner has never seen
-[ee] halted: jump to unmapped 0x00000000
+[ee]   r29 01FFFC90 00000000 00100844 00000000
+[ee] halted: missing code at 0x004D5330 (ra 0x00100844)
+[thread] 1 status 1 prio 1 wait 0/11 pc 0x0010C2F1 ra 0x0010C2E4
+[ee] stopped after 2 frames, 13707699 cycles: missing code at 0x004D5330 (ra 0x00100844)
 """
 
 
@@ -26,7 +43,9 @@ class ScanLogTest(unittest.TestCase):
     def test_clean_run_is_clean(self):
         report = scan_log.scan(CLEAN.splitlines(True))
         self.assertEqual(report.halted, None)
+        self.assertEqual(report.frames, 1800)
         self.assertEqual(sum(sum(c.values()) for c in report.gaps.values()), 0)
+        self.assertEqual(sum(report.unknown_tags.values()), 0)
         self.assertTrue(report.clean())
 
     def test_gaps_are_counted_by_distinct_site(self):
@@ -36,7 +55,8 @@ class ScanLogTest(unittest.TestCase):
         self.assertEqual(report.gaps['ipu_unimplemented']['0x12345678'], 1)
         self.assertEqual(report.gaps['vu1_cmsar1']['0x40'], 1)
         self.assertEqual(report.gaps['io_unsupported']['host0:/foo'], 1)
-        self.assertEqual(report.halted, 'jump to unmapped 0x00000000')
+        self.assertEqual(report.halted, 'missing code at 0x004D5330 (ra 0x00100844)')
+        self.assertEqual(report.frames, 2)
         self.assertFalse(report.clean())
 
     def test_unknown_bracket_tags_are_surfaced(self):
@@ -46,19 +66,32 @@ class ScanLogTest(unittest.TestCase):
 
     def test_render_mentions_every_gap_and_the_halt(self):
         text = scan_log.render(scan_log.scan(GAPPY.splitlines(True)))
-        for needle in ('unhandled_syscall', '0x7A from 0x00123456', 'x2', 'libsd #22', 'halted: jump to unmapped', 'unknown tags: zzz'):
+        for needle in ('unhandled_syscall', '0x7A from 0x00123456', 'x2', 'libsd #22', 'frames reached: 2', 'halted: missing code at 0x004D5330', 'unknown tags: zzz'):
             self.assertIn(needle, text)
 
+    def test_render_says_the_frame_limit_is_not_a_halt(self):
+        text = scan_log.render(scan_log.scan(CLEAN.splitlines(True)), 1800)
+        for needle in ('frames reached: 1800 of 1800', 'halted: no (frame limit reached)', 'gaps: 0 distinct', 'result: CLEAN'):
+            self.assertIn(needle, text)
+
+    def test_a_real_halt_alone_is_not_clean(self):
+        log = "[ee] halted: missing code at 0x004D5330 (ra 0x00100844)\n[ee] stopped after 2 frames, 13707699 cycles: missing code at 0x004D5330 (ra 0x00100844)\n"
+        report = scan_log.scan(log.splitlines(True))
+        self.assertEqual(report.frames, 2)
+        self.assertEqual(report.halted, 'missing code at 0x004D5330 (ra 0x00100844)')
+        self.assertFalse(report.clean())
+
     def test_a_log_that_just_stops_is_not_clean_when_frames_are_expected(self):
-        report = scan_log.scan(CLEAN.splitlines(True))          # reaches frame 3600
-        self.assertTrue(report.clean(expect_frames=3600))
-        self.assertFalse(report.clean(expect_frames=7200))
-        truncated = scan_log.scan(CLEAN.splitlines(True)[:2])    # no frame line at all
-        self.assertFalse(truncated.clean(expect_frames=3600))
+        report = scan_log.scan(CLEAN.splitlines(True))          # stopped after 1800 frames
+        self.assertTrue(report.clean(expect_frames=1800))
+        self.assertFalse(report.clean(expect_frames=3600))
+        truncated = scan_log.scan(CLEAN.splitlines(True)[:-1])   # no "stopped after" line
+        self.assertEqual(truncated.frames, None)
+        self.assertFalse(truncated.clean(expect_frames=1800))
         self.assertTrue(truncated.clean())                       # no expectation given: old behaviour
 
     def test_unknown_tags_make_the_run_not_clean(self):
-        report = scan_log.scan("[zzz] new message\n[ee] frame 100\n".splitlines(True))
+        report = scan_log.scan("[zzz] new message\n[ee] stopped after 100 frames, 5 cycles: frame limit reached\n".splitlines(True))
         self.assertFalse(report.clean())
         self.assertIn('unknown tags: zzz', scan_log.render(report))
 
@@ -68,7 +101,7 @@ class ScanLogTest(unittest.TestCase):
             f.write(CLEAN)
         try:
             self.assertEqual(scan_log.main(['scan-log.py', f.name]), 0)
-            self.assertEqual(scan_log.main(['scan-log.py', f.name, '--expect-frames', '3600']), 0)
+            self.assertEqual(scan_log.main(['scan-log.py', f.name, '--expect-frames', '1800']), 0)
             self.assertEqual(scan_log.main(['scan-log.py', f.name, '--expect-frames', '9999']), 1)
         finally:
             os.unlink(f.name)
