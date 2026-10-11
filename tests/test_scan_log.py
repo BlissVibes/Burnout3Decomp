@@ -99,6 +99,27 @@ class ScanLogTest(unittest.TestCase):
         self.assertFalse(report.clean())
         self.assertIn('unknown tags: zzz', scan_log.render(report))
 
+    def test_module_load_and_iop_output_lines_are_known(self):
+        log = ("[loadfile] cdrom0:\IOP\SIO2MAN.IRX;1\n"
+               "[iop-tty] USB Driver (Version 1.1.0)\n"
+               "[iop-io] read 0x1F808280 = 0x0 (pc 0x00020184)\n")
+        report = scan_log.scan((CLEAN + log).splitlines(True))
+        self.assertEqual(sum(report.unknown_tags.values()), 0)
+        self.assertTrue(report.clean(expect_frames=1800))
+
+    def test_hyphenated_tags_are_read_whole(self):
+        report = scan_log.scan("[iop-zzz] new message\n[zzz-tty] another\n".splitlines(True))
+        self.assertEqual(report.unknown_tags['iop-zzz'], 1)
+        self.assertEqual(report.unknown_tags['zzz-tty'], 1)
+        self.assertNotIn('iop', report.unknown_tags)
+
+    def test_a_missing_iop_import_is_still_a_gap_among_known_lines(self):
+        log = "[loadfile] cdrom0:\IOP\LGAUD.IRX;1\n[iop] missing modload #18 called from 0x0006C1B4\n[iop-tty] lgAud Version 1.10.001\n"
+        report = scan_log.scan((CLEAN + log).splitlines(True))
+        self.assertEqual(report.gaps['iop_missing']['modload #18 called from 0x0006C1B4'], 1)
+        self.assertEqual(sum(report.unknown_tags.values()), 0)
+        self.assertFalse(report.clean(expect_frames=1800))
+
     def test_a_frame_limit_run_that_drew_nothing_is_not_clean(self):
         report = scan_log.scan(NO_DRAW.splitlines(True))
         self.assertEqual(report.primitives, 0)

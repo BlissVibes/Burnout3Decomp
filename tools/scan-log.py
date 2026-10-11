@@ -12,7 +12,9 @@ stops is not clean. A run that reaches the frame limit having drawn fewer than
 clean either: the game hung without drawing.
 The known gap strings come from ps2-web-recomp's runtime; any other
 "[tag] ..." line the scanner has not seen is listed under "unknown tags" and
-fails the run, so a new error string cannot pass silently.
+fails the run, so a new error string cannot pass silently. Tags may contain
+hyphens ("[iop-tty]", the IOP modules' own text output, and "[iop-io]" are
+known, as is "[loadfile]", one line per IOP module the game loads).
 """
 import collections
 import re
@@ -27,9 +29,9 @@ PATTERNS = {
 }
 HALT = re.compile(r'^\[ee\] halted: (.*)$')
 FRAME_LIMIT = 'frame limit reached'
-TAG = re.compile(r'^\[([a-z0-9]+)\]')
+TAG = re.compile(r'^\[([a-z0-9]+(?:-[a-z0-9]+)*)\]')
 KNOWN_TAGS = {'sys', 'iop', 'ipu', 'vu1', 'io', 'ee', 'disc', 'web', 'gpu', 'gs', 'spu2', 'dma', 'sif', 'mc', 'vu0', 'vif', 'cdvd', 'kernel', 'thread',
-              'frame', 'dmac', 'gif', 'sema', 'vif0', 'vif1'}
+              'frame', 'dmac', 'gif', 'sema', 'vif0', 'vif1', 'loadfile', 'iop-tty', 'iop-io'}
 STOPPED = re.compile(r'^\[ee\] stopped after (\d+) frames')
 PRIMITIVES = re.compile(r'^\[gs\] (\d+) primitives drawn')
 

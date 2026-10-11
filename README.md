@@ -31,6 +31,10 @@ tools/port.sh                    # recompile + headless exploring runs
 tools/build-web.sh               # page into ~/b3/out/web
 python3 ~/b3/ps2-web-recomp/scripts/serve.py ~/b3/out/web ~/b3/iso/burnout3.iso
 ```
+`tools/port.sh` stops a headless run whose log passes 1 GB or that runs longer than
+30 minutes, prints `log cap hit` or `run timeout hit` and exits 1. Change the limits
+with `B3_LOG_CAP_BYTES` (bytes) and `B3_RUN_TIMEOUT` (seconds); 0 turns one off.
+
 Tests: `python3 -m unittest discover -s tests -p 'test_*.py'` and `node --test`.
 
 ## Controls
