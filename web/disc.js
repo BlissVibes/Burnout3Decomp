@@ -36,7 +36,75 @@
     return { boot, ok: boot === EXPECTED_BOOT };
   }
 
-  const api = { SECTOR, EXPECTED_BOOT, CACHE_NAME, MARKER_NAME, bootProgram, identify };
+  async function readMarker(dir) {
+    try {
+      const file = await (await dir.getFileHandle(MARKER_NAME)).getFile();
+      return Number(await file.text());
+    } catch (e) {
+      if (e.name === 'NotFoundError') return null;
+      throw e;
+    }
+  }
+
+  async function cachedDisc(storage = root.navigator && root.navigator.storage) {
+    const dir = await storage.getDirectory();
+    let file;
+    try {
+      file = await (await dir.getFileHandle(CACHE_NAME)).getFile();
+    } catch (e) {
+      if (e.name === 'NotFoundError') return null;
+      throw e;
+    }
+    const expected = await readMarker(dir);
+    if (expected === null || expected !== file.size) return null;
+    return file;
+  }
+
+  async function writeAll(handle, source, onProgress, total) {
+    const writable = await handle.createWritable();
+    const writer = writable.getWriter ? writable.getWriter() : writable;
+    const reader = source.stream().getReader();
+    let done = 0;
+    try {
+      for (;;) {
+        const { value, done: finished } = await reader.read();
+        if (finished) break;
+        await writer.write(value);
+        done += value.byteLength;
+        if (onProgress) onProgress(done, total);
+      }
+      await writer.close();
+    } catch (e) {
+      if (writer.abort) await writer.abort().catch(() => {});
+      throw e;
+    }
+  }
+
+  async function cacheDisc(file, onProgress, storage = root.navigator && root.navigator.storage) {
+    if (storage.persist) await storage.persist().catch(() => {});
+    const { quota, usage } = await storage.estimate();
+    const free = Math.max(0, quota - usage);
+    if (free < file.size) {
+      const gb = (n) => (n / 1073741824).toFixed(2);
+      const e = new Error('Not enough browser storage: need ' + gb(file.size) + ' GB, ' + gb(free) + ' GB free');
+      e.name = 'QuotaError';
+      throw e;
+    }
+    const dir = await storage.getDirectory();
+    await dir.removeEntry(MARKER_NAME).catch(() => {});
+    await writeAll(await dir.getFileHandle(CACHE_NAME, { create: true }), file, onProgress, file.size);
+    await writeAll(await dir.getFileHandle(MARKER_NAME, { create: true }), new Blob([String(file.size)]), null, 0);
+    return (await dir.getFileHandle(CACHE_NAME)).getFile();
+  }
+
+  async function ejectDisc(storage = root.navigator && root.navigator.storage) {
+    const dir = await storage.getDirectory();
+    for (const name of [MARKER_NAME, CACHE_NAME]) {
+      try { await dir.removeEntry(name); } catch (e) { if (e.name !== 'NotFoundError') throw e; }
+    }
+  }
+
+  const api = { SECTOR, EXPECTED_BOOT, CACHE_NAME, MARKER_NAME, bootProgram, identify, cachedDisc, cacheDisc, ejectDisc };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.B3Disc = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

@@ -50,3 +50,73 @@ test('not an ISO throws a readable error', async () => {
 test('a file shorter than 17 sectors throws, does not hang', async () => {
   await assert.rejects(bootProgram(new Blob([new Uint8Array(100)])), /not an ISO 9660 image/);
 });
+
+// A fake of the slice of the File System Access API that disc.js uses.
+function fakeStorage({ quota = 1e12, usage = 0, persist = true } = {}) {
+  const files = new Map();
+  const handle = (name) => ({
+    name,
+    async getFile() { const parts = files.get(name) || []; return new File(parts, name); },
+    async createWritable() {
+      const parts = [];
+      return {
+        async write(chunk) { parts.push(chunk); },
+        async close() { files.set(name, parts); },
+        async abort() {},
+        // pipeTo support: WritableStream-like adapter
+        getWriter() { return { write: async (c) => parts.push(c), close: async () => files.set(name, parts), releaseLock() {} }; },
+      };
+    },
+  });
+  const dir = {
+    async getFileHandle(name, opts = {}) {
+      if (!files.has(name) && !opts.create) { const e = new Error('nf'); e.name = 'NotFoundError'; throw e; }
+      if (!files.has(name) && opts.create) files.set(name, []);
+      return handle(name);
+    },
+    async removeEntry(name) { if (!files.delete(name)) { const e = new Error('nf'); e.name = 'NotFoundError'; throw e; } },
+  };
+  return { files, async getDirectory() { return dir; }, async estimate() { return { quota, usage }; }, async persist() { return persist; } };
+}
+
+const { cachedDisc, cacheDisc, ejectDisc, CACHE_NAME, MARKER_NAME } = createRequire(import.meta.url)('../web/disc.js');
+
+test('nothing cached yet', async () => {
+  assert.equal(await cachedDisc(fakeStorage()), null);
+});
+
+test('cache then load round-trips the bytes and reports progress', async () => {
+  const storage = fakeStorage();
+  const data = new Uint8Array(3 * 1024 * 1024).map((_, i) => i & 255);
+  const seen = [];
+  await cacheDisc(new File([data], 'x.iso'), (done, total) => seen.push([done, total]), storage);
+  const back = await cachedDisc(storage);
+  assert.equal(back.size, data.length);
+  assert.deepEqual(new Uint8Array(await back.slice(1000, 1010).arrayBuffer()), data.subarray(1000, 1010));
+  assert.equal(seen.at(-1)[0], data.length);
+  assert.equal(seen.at(-1)[1], data.length);
+});
+
+test('an interrupted copy (no marker, or wrong size) is treated as absent', async () => {
+  const storage = fakeStorage();
+  storage.files.set(CACHE_NAME, [new Uint8Array(5000)]);          // no marker
+  assert.equal(await cachedDisc(storage), null);
+  storage.files.set(MARKER_NAME, [new TextEncoder().encode('9999')]);  // marker disagrees with size
+  assert.equal(await cachedDisc(storage), null);
+  storage.files.set(MARKER_NAME, [new TextEncoder().encode('5000')]);
+  assert.equal((await cachedDisc(storage)).size, 5000);
+});
+
+test('refuses to start when the quota is too small, naming the sizes', async () => {
+  const storage = fakeStorage({ quota: 1000, usage: 500 });
+  await assert.rejects(cacheDisc(new File([new Uint8Array(4000)], 'x.iso'), null, storage), (e) => e.name === 'QuotaError' && /need 0\.00 GB/.test(e.message) && /0\.00 GB free/.test(e.message));
+  assert.equal(storage.files.size, 0);
+});
+
+test('eject removes both files and tolerates absence', async () => {
+  const storage = fakeStorage();
+  await cacheDisc(new File([new Uint8Array(10)], 'x.iso'), null, storage);
+  await ejectDisc(storage);
+  assert.equal(storage.files.size, 0);
+  await ejectDisc(storage);
+});
