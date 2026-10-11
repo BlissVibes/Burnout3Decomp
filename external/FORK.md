@@ -36,3 +36,8 @@ so the fork lives outside the repo and is pinned here instead.
   `runtime/src/vif.cpp`. VIF1 code 0x06 now sets a PATH3 mask flag that reads back as
   GIF_STAT bit 1, and GIF_MODE bits 0 and 2 are mirrored into GIF_STAT. PATH3 transfers are
   not actually stalled while masked. See `docs/re/gap-003-gif-status-path3-mask.md`.
+- `gif: hold PATH3 while masked and report the FIFO count`: `runtime/src/gs/gif.cpp`,
+  `runtime/src/vif.cpp`. PATH3 data that arrives while PATH3 is masked is held and forwarded
+  when the mask clears; GIF_STAT reports the held amount as the FIFO count (capped at 16) and
+  the P3Q bit. Only the EE pass of the VIF1 stream changes the mask. See
+  `docs/re/gap-004-path3-stall-and-gif-fifo.md`.
