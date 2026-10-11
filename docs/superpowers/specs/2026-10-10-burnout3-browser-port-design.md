@@ -49,7 +49,7 @@ Burnout3Decomp/                      (this repo, MIT, public)
     research/PROVENANCE.md           credits ledger (keep current)
     superpowers/specs, plans
     re/                              reverse-engineering notes per subsystem (addresses, structs, theories)
-  .gitignore                         blocks *.iso *.elf SLUS* build/ generated/ games/
+  (no .gitignore by Mark's choice: all game-derived files and build output live outside the repo tree, in the WSL home directory)
 ```
 
 Three layers:
@@ -147,6 +147,6 @@ DirtySock) stays recompiled indefinitely.
 ## Decisions recorded
 
 - ISO region: NTSC-U SLUS-21050 only for v1. Other regions rejected with a
-  message. Mark's ISO verified 2026-10-10: SHA-1 11a7f335a37d2f3f5c13b967f3072c84f8eded02 (2,867,822,592 bytes), matching the documented NTSC-U SLUS-21050 image. Local path recorded in docs/LOCAL_PATHS.md (gitignored).
+  message. Mark's ISO verified 2026-10-10: SHA-1 11a7f335a37d2f3f5c13b967f3072c84f8eded02 (2,867,822,592 bytes), matching the documented NTSC-U SLUS-21050 image. Local path recorded in docs/LOCAL_PATHS.md.
 - Archive input: not in v1.
 - Resolution: 1x default, selector kept from upstream.
