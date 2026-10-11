@@ -531,9 +531,11 @@ const pickButton = document.getElementById('pick');
 const pickInput = document.getElementById('pick-file');
 const copyBar = document.getElementById('copy');
 const ejectOverlay = document.getElementById('eject-overlay');
+const ejectBar = document.getElementById('eject');
+const EJECT_PENDING = 'b3-eject-pending';
 let resolveDisc;
 const discReady = new Promise((resolve) => { resolveDisc = resolve; });
-let runtimeReady = false, discGone = false;
+let runtimeReady = false, discGone = false, discIsCached = false;
 
 // Start is usable once the runtime is up and there is a disc to read.
 function refreshStart() {
@@ -541,7 +543,9 @@ function refreshStart() {
   if (start && runtimeReady && !missing.length) start.disabled = discGone;
 }
 // The first disc resolves discReady; a disc picked after an eject replaces it.
-function useDisc(file) {
+// fromCache says whether the runtime reads the browser's cached copy or a picked file.
+function useDisc(file, fromCache) {
+  discIsCached = fromCache;
   resolveDisc(file);
   if (Module.discFile) {
     Module.discFile = file;
@@ -556,15 +560,30 @@ function discStatus(text) {
   if (el) el.textContent = text;
   else note(text);
 }
+// The cached file must not be removed while it is being written.
+function setCopying(on) {
+  ejectBar.disabled = ejectOverlay.disabled = on;
+}
 
 async function findDisc() {
   ejectOverlay.hidden = true;
+  // An eject asked for while the game was reading the cached copy happens now.
+  let pending = false;
+  try { pending = localStorage.getItem(EJECT_PENDING) === '1'; } catch (e) {}
+  if (pending) {
+    try {
+      await B3Disc.ejectDisc();
+      localStorage.removeItem(EJECT_PENDING);
+    } catch (e) {
+      console.warn('pending disc eject failed', e);
+    }
+  }
   let cached = null;
   try { cached = await B3Disc.cachedDisc(); } catch (e) { console.warn('disc cache unavailable', e); }
   if (cached) {
     discText.textContent = 'Disc ready (' + (cached.size / 1073741824).toFixed(2) + ' GB cached in this browser).';
     ejectOverlay.hidden = false;
-    useDisc(cached);
+    useDisc(cached, true);
     return;
   }
   discText.textContent = 'First time here: point the browser at your Burnout 3: Takedown (NTSC-U) ISO. It is copied into this browser once and never uploaded.';
@@ -586,31 +605,51 @@ pickInput.addEventListener('change', async () => {
   }
   pickButton.hidden = true;
   discText.textContent = 'Disc accepted. You can start now; it is being copied into this browser for next time.';
-  useDisc(file);                                       // play from the picked file right away
+  useDisc(file, false);                                // play from the picked file right away
   copyBar.value = 0;
   copyBar.hidden = false;
+  setCopying(true);
   try {
     await B3Disc.cacheDisc(file, (done, total) => { copyBar.value = Math.round(done * 100 / total); });
     copyBar.hidden = true;
+    ejectOverlay.hidden = false;
     discStatus('Disc cached. Next time this page starts straight away.');
   } catch (e) {
     copyBar.hidden = true;
     discStatus((e.name === 'QuotaError' ? e.message : 'Could not cache the disc: ' + e.message) + '. You can still play this visit.');
+  } finally {
+    setCopying(false);
   }
 });
 async function ejectDisc() {
+  // The running game reads the cached copy: removing it now would break the next disc read.
+  if (Module.running && discIsCached) {
+    if (!confirm('Eject the cached disc after this session? The page will ask for your ISO on the next load.')) return;
+    try {
+      localStorage.setItem(EJECT_PENDING, '1');
+      note('Disc will be ejected the next time this page loads');
+    } catch (e) {
+      note('Could not schedule the eject: ' + e.message);
+    }
+    return;
+  }
   if (!confirm('Forget the cached disc? The page will ask for your ISO again next time.')) return;
   try { await B3Disc.ejectDisc(); } catch (e) { discStatus('Eject failed: ' + e.message); return; }
-  if (document.getElementById('overlay')) {
+  if (!document.getElementById('overlay')) {
+    note('Disc ejected');
+  } else if (discIsCached) {
     // Still on the first-run panel: nothing to boot from until another ISO is picked.
+    discIsCached = false;
     discGone = true;
     refreshStart();
     findDisc();
   } else {
-    note('Disc ejected');
+    // The picked file is still in hand, so this visit can go on without the cached copy.
+    ejectOverlay.hidden = true;
+    discStatus('Cached copy removed. You can still play this visit from the file you picked.');
   }
 }
-document.getElementById('eject').addEventListener('click', ejectDisc);
+ejectBar.addEventListener('click', ejectDisc);
 ejectOverlay.addEventListener('click', ejectDisc);
 findDisc();
 var Module = {
