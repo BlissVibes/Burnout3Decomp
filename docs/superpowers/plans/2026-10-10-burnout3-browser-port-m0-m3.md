@@ -1667,7 +1667,7 @@ TEAM=mark-wilsons-projects-4b36a71c
 
 [ -f "$SRC/ps2web.html" ] || { echo "no build at $SRC; run tools/build-web.sh" >&2; exit 1; }
 rm -rf "$STAGE" && mkdir -p "$STAGE"
-cp "$SRC"/ps2web.html "$SRC"/ps2web.js "$SRC"/ps2web.wasm "$SRC"/ps2web.data "$SRC"/*.js "$STAGE"/
+cp "$SRC"/ps2web.html "$SRC"/ps2web.wasm "$SRC"/ps2web.data "$SRC"/*.js "$STAGE"/
 cp "$STAGE/ps2web.html" "$STAGE/index.html"
 cp "$REPO/tools/deploy/vercel.json" "$STAGE/vercel.json"
 du -sh "$STAGE"; ls -la "$STAGE"
