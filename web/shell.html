@@ -116,10 +116,20 @@
   <button id="export-card" type="button" title="Download the memory card in slot 1 as a .ps2 file">Export card</button>
   <button id="import-card" type="button" title="Put a .ps2 memory card file in slot 1">Import card</button>
   <input id="import-file" type="file" accept=".ps2" hidden>
+  <button id="eject" type="button" title="Forget the cached disc; the page asks for the ISO again next time">Eject disc</button>
   <button id="fullscreen" type="button" title="Fullscreen (F or double click)">Fullscreen</button></div>
 <button id="exit-fullscreen" type="button">Exit fullscreen</button>
-<div id="overlay"><div id="panel"><p id="help" hidden></p><button id="start" disabled>Loading…</button></div></div>
+<div id="overlay"><div id="panel">
+  <h1 style="margin:0;font-size:20px">Burnout 3: Takedown</h1>
+  <p id="help" hidden></p>
+  <p id="disc-text">Checking for a cached disc…</p>
+  <button id="pick" type="button" hidden>Choose your Burnout 3 ISO</button>
+  <input id="pick-file" type="file" accept=".iso" hidden>
+  <progress id="copy" max="100" value="0" hidden style="width:320px"></progress>
+  <button id="start" disabled>Loading…</button>
+</div></div>
 <script src="pad.js"></script>
+<script src="disc.js"></script>
 <script>
 const statusEl = document.getElementById('status');
 const CARD_DIR = '/memcard', CARD_FILE = '/memcard/Mcd001.ps2', CARD_BYTES = 8650752;
@@ -515,6 +525,55 @@ const countShown = () => {
   requestAnimationFrame(countShown);
 };
 requestAnimationFrame(countShown);
+const discText = document.getElementById('disc-text');
+const pickButton = document.getElementById('pick');
+const pickInput = document.getElementById('pick-file');
+const copyBar = document.getElementById('copy');
+let resolveDisc;
+const discReady = new Promise((resolve) => { resolveDisc = resolve; });
+
+async function findDisc() {
+  let cached = null;
+  try { cached = await B3Disc.cachedDisc(); } catch (e) { console.warn('disc cache unavailable', e); }
+  if (cached) {
+    discText.textContent = 'Disc ready (' + (cached.size / 1073741824).toFixed(2) + ' GB cached in this browser).';
+    resolveDisc(cached);
+    return;
+  }
+  discText.textContent = 'First time here: point the browser at your Burnout 3: Takedown (NTSC-U) ISO. It is copied into this browser once and never uploaded.';
+  pickButton.hidden = false;
+}
+pickButton.addEventListener('click', () => pickInput.click());
+pickInput.addEventListener('change', async () => {
+  const file = pickInput.files[0];
+  pickInput.value = '';
+  if (!file) return;
+  pickButton.disabled = true;
+  let id;
+  try { id = await B3Disc.identify(file); } catch (e) { discText.textContent = file.name + ': ' + e.message; pickButton.disabled = false; return; }
+  if (!id.ok) {
+    discText.textContent = file.name + ' boots ' + (id.boot || 'nothing recognisable') + '. This page needs the NTSC-U Burnout 3 disc (SLUS_210.50).';
+    pickButton.disabled = false;
+    return;
+  }
+  pickButton.hidden = true;
+  discText.textContent = 'Disc accepted. You can start now; it is being copied into this browser for next time.';
+  resolveDisc(file);                                   // play from the picked file right away
+  copyBar.hidden = false;
+  try {
+    await B3Disc.cacheDisc(file, (done, total) => { copyBar.value = Math.round(done * 100 / total); });
+    copyBar.hidden = true;
+    discText.textContent = 'Disc cached. Next time this page starts straight away.';
+  } catch (e) {
+    copyBar.hidden = true;
+    discText.textContent = (e.name === 'QuotaError' ? e.message : 'Could not cache the disc: ' + e.message) + ' You can still play this visit.';
+  }
+});
+document.getElementById('eject').addEventListener('click', async () => {
+  if (!confirm('Forget the cached disc? The page will ask for your ISO again next time.')) return;
+  try { await B3Disc.ejectDisc(); note('Disc ejected'); } catch (e) { note('Eject failed: ' + e.message); }
+});
+findDisc();
 var Module = {
   canvas,
   arguments: ['/game/core.elf'].concat(params.has('arg') ? ['--arg', params.get('arg')] : [], params.getAll('press').flatMap((p) => p.split(',').flatMap((x) => ['--press', x]))),
@@ -553,15 +612,16 @@ var Module = {
     for (const [key, value] of params) if (key.startsWith('PS2_')) Module.ENV[key] = value;
     Module.ENV.PS2_SCALE = scale;
     Module.addRunDependency('disc');
-    Promise.all([fetch(Module.discUrl, { method: 'HEAD' }), chooseGpu().catch((e) => 'GPU check failed: ' + e)]).then(([r, gpu]) => {
-      Module.discSize = Number(r.headers.get('content-length')) || 0;
+    Promise.all([discReady, chooseGpu().catch((e) => 'GPU check failed: ' + e)]).then(([file, gpu]) => {
+      Module.discFile = file;
+      Module.discSize = file.size;
       Module.gpuInfo = gpu;
       if (Module.gpuHelp && !missing.length) {
         const help = document.getElementById('help');
         help.textContent = Module.gpuHelp;
         help.hidden = false;
       }
-      statusEl.textContent = (Module.discSize ? 'Disc ' + (Module.discSize / 1073741824).toFixed(2) + ' GB' : 'No disc image at ' + Module.discUrl) + ', ' + gpu;
+      statusEl.textContent = 'Disc ' + (file.size / 1073741824).toFixed(2) + ' GB, ' + gpu;
       Module.removeRunDependency('disc');
     });
   }],
