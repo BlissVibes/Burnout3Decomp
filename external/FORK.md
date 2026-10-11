@@ -23,3 +23,12 @@ so the fork lives outside the repo and is pinned here instead.
   `pointer_tables()`; eerecomp now translates functions reached only through a table of four
   or more code pointers (static constructor lists, vtables). See
   `docs/re/gap-001-static-constructor-table.md`.
+- `hw: deliver INTC interrupts after a short latency so status polls can see the bit`:
+  `runtime/src/hw.cpp`, `hw.hpp`, `system.cpp`. An INTC line that rises while enabled is
+  delivered 32 EE cycles later, so a tight poll of INTC_STAT (libgraph's `sceGsSyncV`) sees
+  the bit before the kernel acknowledges it. State version 2 → 3. This is a behaviour change
+  for every game: when offering it upstream, ask for a run against GT4 and God of War II,
+  which could not be tested here. See `docs/re/gap-002-vblank-poll-interrupt-latency.md`.
+- `codegen: remove stale unit files before writing`: `recomp/codegen.cpp`. eerecomp deletes
+  `unit_*.cpp` files in its output directory that the current pass did not emit; the build
+  globs that directory, and leftovers from a pass with more units broke the compile.
