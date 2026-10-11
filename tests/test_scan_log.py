@@ -49,6 +49,30 @@ class ScanLogTest(unittest.TestCase):
         for needle in ('unhandled_syscall', '0x7A from 0x00123456', 'x2', 'libsd #22', 'halted: jump to unmapped', 'unknown tags: zzz'):
             self.assertIn(needle, text)
 
+    def test_a_log_that_just_stops_is_not_clean_when_frames_are_expected(self):
+        report = scan_log.scan(CLEAN.splitlines(True))          # reaches frame 3600
+        self.assertTrue(report.clean(expect_frames=3600))
+        self.assertFalse(report.clean(expect_frames=7200))
+        truncated = scan_log.scan(CLEAN.splitlines(True)[:2])    # no frame line at all
+        self.assertFalse(truncated.clean(expect_frames=3600))
+        self.assertTrue(truncated.clean())                       # no expectation given: old behaviour
+
+    def test_unknown_tags_make_the_run_not_clean(self):
+        report = scan_log.scan("[zzz] new message\n[ee] frame 100\n".splitlines(True))
+        self.assertFalse(report.clean())
+        self.assertIn('unknown tags: zzz', scan_log.render(report))
+
+    def test_main_exit_codes(self):
+        import io, os, tempfile
+        with tempfile.NamedTemporaryFile('w', suffix='.log', delete=False) as f:
+            f.write(CLEAN)
+        try:
+            self.assertEqual(scan_log.main(['scan-log.py', f.name]), 0)
+            self.assertEqual(scan_log.main(['scan-log.py', f.name, '--expect-frames', '3600']), 0)
+            self.assertEqual(scan_log.main(['scan-log.py', f.name, '--expect-frames', '9999']), 1)
+        finally:
+            os.unlink(f.name)
+
 
 if __name__ == '__main__':
     unittest.main()

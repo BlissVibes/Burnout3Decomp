@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Summarizes a ps2run / port.sh explore log and says whether the run was clean.
 
-usage: scan-log.py <explore.log>
+usage: scan-log.py <explore.log> [--expect-frames N]
 Exit 0 when no runtime gap was logged and the EE did not halt, 1 otherwise.
+With --expect-frames N the run must also have reached frame N, so a log that
+just stops is not clean.
 The known gap strings come from ps2-web-recomp's runtime; any other
-"[tag] ..." line the scanner has not seen is listed under "unknown tags" so a
-new error string cannot pass silently.
+"[tag] ..." line the scanner has not seen is listed under "unknown tags" and
+fails the run, so a new error string cannot pass silently.
 """
 import collections
 import re
@@ -31,8 +33,12 @@ class Report:
         self.unknown_tags = collections.Counter()
         self.frames = None
 
-    def clean(self):
-        return self.halted is None and not any(self.gaps.values())
+    def clean(self, expect_frames=None):
+        if self.halted is not None or any(self.gaps.values()) or self.unknown_tags:
+            return False
+        if expect_frames is not None and (self.frames is None or self.frames < expect_frames):
+            return False
+        return True
 
 
 def scan(lines):
@@ -62,10 +68,10 @@ def scan(lines):
     return report
 
 
-def render(report):
+def render(report, expect_frames=None):
     out = []
     total = sum(sum(c.values()) for c in report.gaps.values())
-    out.append('frames reached: %s' % (report.frames if report.frames is not None else 'unknown'))
+    out.append('frames reached: %s%s' % (report.frames if report.frames is not None else 'none', ' of %d' % expect_frames if expect_frames is not None else ''))
     out.append('halted: %s' % (report.halted or 'no'))
     out.append('gaps: %d distinct, %d total' % (sum(len(c) for c in report.gaps.values()), total))
     for key, counter in report.gaps.items():
@@ -73,18 +79,28 @@ def render(report):
             out.append('  %s  %s  x%d' % (key, site, count))
     if report.unknown_tags:
         out.append('unknown tags: ' + ', '.join('%s x%d' % kv for kv in report.unknown_tags.most_common()))
-    out.append('result: ' + ('CLEAN' if report.clean() else 'GAPS'))
+    out.append('result: ' + ('CLEAN' if report.clean(expect_frames) else 'GAPS'))
     return '\n'.join(out)
 
 
 def main(argv):
-    if len(argv) != 2:
+    args = argv[1:]
+    expect_frames = None
+    if '--expect-frames' in args:
+        at = args.index('--expect-frames')
+        try:
+            expect_frames = int(args[at + 1])
+        except (IndexError, ValueError):
+            print(__doc__.strip(), file=sys.stderr)
+            return 2
+        del args[at:at + 2]
+    if len(args) != 1:
         print(__doc__.strip(), file=sys.stderr)
         return 2
-    with open(argv[1], encoding='utf-8', errors='replace') as f:
+    with open(args[0], encoding='utf-8', errors='replace') as f:
         report = scan(f)
-    print(render(report))
-    return 0 if report.clean() else 1
+    print(render(report, expect_frames))
+    return 0 if report.clean(expect_frames) else 1
 
 
 if __name__ == '__main__':
