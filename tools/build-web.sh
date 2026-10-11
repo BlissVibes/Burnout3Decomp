@@ -9,7 +9,7 @@ OUT="$HOME/b3/out/web"
 EMSDK="${EMSDK:-$FORK/tools/emsdk}"
 
 boot=$(sed -n 's/^BOOT2 *= *//p' "$FORK/games/$NAME/disc/SYSTEM.CNF" | tr -d '\r')
-program=${boot#*\}; program=${program%;*}
+program=${boot#*\\}; program=${program%;*}
 elf="$FORK/games/$NAME/disc/$program"
 [ -f "$elf" ] || { echo "no executable at $elf; run tools/port.sh first" >&2; exit 1; }
 

@@ -16,4 +16,6 @@ so the fork lives outside the repo and is pinned here instead.
    update the pinned commit above, and note the upstream date.
 
 ## Our changes on `burnout3` (keep generic, offer upstream)
-- (none yet)
+- `cmake: PS2_WEB_SHELL lets a port supply its own shell page`: `CMakeLists.txt` gains a
+  `PS2_WEB_SHELL` cache variable (default: the fork's own `web/shell.html`) used for
+  `--shell-file` and the link dependency. `tools/build-web.sh` points it at this repo's shell.
