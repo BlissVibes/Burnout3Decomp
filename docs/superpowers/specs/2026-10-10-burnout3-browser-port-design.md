@@ -38,7 +38,9 @@ long time). See `docs/research/PROVENANCE.md` for every project consulted.
 
 ```
 Burnout3Decomp/                      (this repo, MIT, public)
-  external/ps2-web-recomp/           git submodule -> BlissVibes fork of snuri00/ps2-web-recomp
+  external/FORK.md                   pins the BlissVibes fork of snuri00/ps2-web-recomp (URL, branch, commit);
+                                     the fork itself is cloned at ~/b3/ps2-web-recomp inside WSL, outside the repo,
+                                     because its port.sh writes game-derived files into its own tree
   game/
     port config                      Burnout-specific recompiler config (entry points, patches)
     hooks/                           list of guest addresses overridden by our code
@@ -54,7 +56,7 @@ Burnout3Decomp/                      (this repo, MIT, public)
 
 Three layers:
 
-1. **Recompiler + runtime** (the fork). Generic fixes (missing syscalls, IOP
+1. **Recompiler + runtime** (the fork, pinned by commit in `external/FORK.md`). Generic fixes (missing syscalls, IOP
    library functions, GS features, recompiler bugs) land in the fork on a
    `burnout3` branch and are offered upstream as PRs. The fork is MIT; we keep
    its license and credit.
