@@ -127,6 +127,7 @@
   <input id="pick-file" type="file" accept=".iso" hidden>
   <progress id="copy" max="100" value="0" hidden style="width:320px"></progress>
   <button id="start" disabled>Loading…</button>
+  <button id="eject-overlay" type="button" hidden>Eject disc</button>
 </div></div>
 <script src="pad.js"></script>
 <script src="disc.js"></script>
@@ -529,18 +530,45 @@ const discText = document.getElementById('disc-text');
 const pickButton = document.getElementById('pick');
 const pickInput = document.getElementById('pick-file');
 const copyBar = document.getElementById('copy');
+const ejectOverlay = document.getElementById('eject-overlay');
 let resolveDisc;
 const discReady = new Promise((resolve) => { resolveDisc = resolve; });
+let runtimeReady = false, discGone = false;
+
+// Start is usable once the runtime is up and there is a disc to read.
+function refreshStart() {
+  const start = document.getElementById('start');
+  if (start && runtimeReady && !missing.length) start.disabled = discGone;
+}
+// The first disc resolves discReady; a disc picked after an eject replaces it.
+function useDisc(file) {
+  resolveDisc(file);
+  if (Module.discFile) {
+    Module.discFile = file;
+    Module.discSize = file.size;
+  }
+  discGone = false;
+  refreshStart();
+}
+// Disc messages go to the first-run panel while it is up, to the status bar after Start.
+function discStatus(text) {
+  const el = document.getElementById('disc-text');
+  if (el) el.textContent = text;
+  else note(text);
+}
 
 async function findDisc() {
+  ejectOverlay.hidden = true;
   let cached = null;
   try { cached = await B3Disc.cachedDisc(); } catch (e) { console.warn('disc cache unavailable', e); }
   if (cached) {
     discText.textContent = 'Disc ready (' + (cached.size / 1073741824).toFixed(2) + ' GB cached in this browser).';
-    resolveDisc(cached);
+    ejectOverlay.hidden = false;
+    useDisc(cached);
     return;
   }
   discText.textContent = 'First time here: point the browser at your Burnout 3: Takedown (NTSC-U) ISO. It is copied into this browser once and never uploaded.';
+  pickButton.disabled = false;
   pickButton.hidden = false;
 }
 pickButton.addEventListener('click', () => pickInput.click());
@@ -558,21 +586,32 @@ pickInput.addEventListener('change', async () => {
   }
   pickButton.hidden = true;
   discText.textContent = 'Disc accepted. You can start now; it is being copied into this browser for next time.';
-  resolveDisc(file);                                   // play from the picked file right away
+  useDisc(file);                                       // play from the picked file right away
+  copyBar.value = 0;
   copyBar.hidden = false;
   try {
     await B3Disc.cacheDisc(file, (done, total) => { copyBar.value = Math.round(done * 100 / total); });
     copyBar.hidden = true;
-    discText.textContent = 'Disc cached. Next time this page starts straight away.';
+    discStatus('Disc cached. Next time this page starts straight away.');
   } catch (e) {
     copyBar.hidden = true;
-    discText.textContent = (e.name === 'QuotaError' ? e.message : 'Could not cache the disc: ' + e.message) + ' You can still play this visit.';
+    discStatus((e.name === 'QuotaError' ? e.message : 'Could not cache the disc: ' + e.message) + '. You can still play this visit.');
   }
 });
-document.getElementById('eject').addEventListener('click', async () => {
+async function ejectDisc() {
   if (!confirm('Forget the cached disc? The page will ask for your ISO again next time.')) return;
-  try { await B3Disc.ejectDisc(); note('Disc ejected'); } catch (e) { note('Eject failed: ' + e.message); }
-});
+  try { await B3Disc.ejectDisc(); } catch (e) { discStatus('Eject failed: ' + e.message); return; }
+  if (document.getElementById('overlay')) {
+    // Still on the first-run panel: nothing to boot from until another ISO is picked.
+    discGone = true;
+    refreshStart();
+    findDisc();
+  } else {
+    note('Disc ejected');
+  }
+}
+document.getElementById('eject').addEventListener('click', ejectDisc);
+ejectOverlay.addEventListener('click', ejectDisc);
 findDisc();
 var Module = {
   canvas,
@@ -592,8 +631,9 @@ var Module = {
   onRuntimeInitialized: () => {
     const start = document.getElementById('start');
     if (missing.length) return;
-    start.disabled = false;
+    runtimeReady = true;
     start.textContent = 'Start';
+    refreshStart();
   },
   preRun: [() => {
     if (!Module.noCard) {
