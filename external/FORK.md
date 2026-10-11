@@ -54,3 +54,8 @@ so the fork lives outside the repo and is pinned here instead.
   256 faults and `dump()` prints the total; sysclib memory writes below `kUserBase` are
   reported (at most 16 lines). Uncommitted. See
   `docs/re/gap-006-iop-heap-alloc-sysmemory-unhandled.md`.
+- `web: read the disc from Module.discFile when the page supplies one`: `host/web.cpp`.
+  `ps2web_fetch` reads each disc chunk with `Module.discFile.slice(...).arrayBuffer()` when the
+  page has set `Module.discFile` (a `File`), and falls back to the Range request on
+  `Module.discUrl` otherwise. This repo's shell sets it from the picked ISO or the cached copy,
+  so the server never holds the disc.
