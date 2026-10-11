@@ -41,3 +41,16 @@ so the fork lives outside the repo and is pinned here instead.
   when the mask clears; GIF_STAT reports the held amount as the FIFO count (capped at 16) and
   the P3Q bit. Only the EE pass of the VIF1 stream changes the mask. See
   `docs/re/gap-004-path3-stall-and-gif-fifo.md`.
+- `kernel: Deci2Call send requests fail like a retail console without a host`:
+  `runtime/src/kernel.cpp`. Syscall 0x7C sub-commands 3 (ReqSend) and 7 (ExReqSend) return -1,
+  so the kernel-library debug-TTY writer takes its error path instead of polling for a
+  completion that never comes; other sub-commands stay no-ops. Uncommitted. See
+  `docs/re/gap-005-deci2-tty-send-never-completes.md`.
+- `iop: implement the IOP heap service (AllocSysMemory, LoadIopHeap, block queries) and end a
+  guest call on a fault`: `runtime/src/iop/sif.cpp`, `kernel.cpp`, `kernel.hpp`, `cpu.cpp`,
+  `libs.cpp`. SIF RPC server 0x80000003 now answers all nine libkernel heap methods (4 is
+  `AllocSysMemory(size, type, addr)` on the existing allocator; 3 loads a disc file to an IOP
+  address). A fault inside `call_guest` ends the call and returns 0; fault logging stops after
+  256 faults and `dump()` prints the total; sysclib memory writes below `kUserBase` are
+  reported (at most 16 lines). Uncommitted. See
+  `docs/re/gap-006-iop-heap-alloc-sysmemory-unhandled.md`.
