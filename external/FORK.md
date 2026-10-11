@@ -32,3 +32,7 @@ so the fork lives outside the repo and is pinned here instead.
 - `codegen: remove stale unit files before writing`: `recomp/codegen.cpp`. eerecomp deletes
   `unit_*.cpp` files in its output directory that the current pass did not emit; the build
   globs that directory, and leftovers from a pass with more units broke the compile.
+- `gif: reflect VIF1 MSKPATH3 and GIF_MODE in GIF_STAT`: `runtime/src/gs/gif.cpp`, `gif.hpp`,
+  `runtime/src/vif.cpp`. VIF1 code 0x06 now sets a PATH3 mask flag that reads back as
+  GIF_STAT bit 1, and GIF_MODE bits 0 and 2 are mirrored into GIF_STAT. PATH3 transfers are
+  not actually stalled while masked. See `docs/re/gap-003-gif-status-path3-mask.md`.
