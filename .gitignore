@@ -21,3 +21,4 @@ tools/emsdk/
 node_modules/
 .DS_Store
 Thumbs.db
+docs/LOCAL_PATHS.md

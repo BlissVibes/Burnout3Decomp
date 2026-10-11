@@ -147,6 +147,6 @@ DirtySock) stays recompiled indefinitely.
 ## Decisions recorded
 
 - ISO region: NTSC-U SLUS-21050 only for v1. Other regions rejected with a
-  message. Mark's disc to be verified at milestone 1.
+  message. Mark's ISO verified 2026-10-10: SHA-1 11a7f335a37d2f3f5c13b967f3072c84f8eded02 (2,867,822,592 bytes), matching the documented NTSC-U SLUS-21050 image. Local path recorded in docs/LOCAL_PATHS.md (gitignored).
 - Archive input: not in v1.
 - Resolution: 1x default, selector kept from upstream.
