@@ -120,3 +120,21 @@ test('eject removes both files and tolerates absence', async () => {
   assert.equal(storage.files.size, 0);
   await ejectDisc(storage);
 });
+
+test('re-caching frees the old copy before checking quota', async () => {
+  // fake whose usage counts the bytes it holds
+  const storage = fakeStorage({ quota: 12000 });
+  const base = storage.estimate;
+  storage.estimate = async () => ({ quota: 12000, usage: [...storage.files.values()].flat().reduce((n, c) => n + (c.byteLength ?? c.size ?? 0), 0) });
+  await cacheDisc(new File([new Uint8Array(8000)], 'a.iso'), null, storage);
+  await cacheDisc(new File([new Uint8Array(9000)], 'b.iso'), null, storage);   // would fail if the 8000 still counted
+  assert.equal((await cachedDisc(storage)).size, 9000);
+});
+
+test('an absurd root directory size is rejected, not read', async () => {
+  const image = new Uint8Array(20 * SECTOR);
+  const pvd = image.subarray(16 * SECTOR, 17 * SECTOR);
+  pvd[0] = 1; pvd.set([67, 68, 48, 48, 49], 1); pvd[6] = 1;
+  pvd.set(u32le(18), 158); pvd.set(u32le(0x7fffffff), 166);
+  await assert.rejects(bootProgram(new Blob([image])), /root directory too large/);
+});

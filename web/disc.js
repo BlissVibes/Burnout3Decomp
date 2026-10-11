@@ -16,6 +16,7 @@
     const pvd = await bytes(blob, 16 * SECTOR, SECTOR);
     if (pvd.length < 190 || pvd[0] !== 1 || ascii(pvd.subarray(1, 6)) !== 'CD001') throw new Error('not an ISO 9660 image (no volume descriptor at sector 16)');
     const rootLba = le32(pvd, 158), rootSize = le32(pvd, 166);
+    if (rootSize > 262144) throw new Error('not an ISO 9660 image (root directory too large)');
     const dir = await bytes(blob, rootLba * SECTOR, Math.ceil(rootSize / SECTOR) * SECTOR);
     for (let off = 0; off < rootSize && off < dir.length;) {
       const len = dir[off];
@@ -82,6 +83,11 @@
 
   async function cacheDisc(file, onProgress, storage = root.navigator && root.navigator.storage) {
     if (storage.persist) await storage.persist().catch(() => {});
+    // The old copy goes first, so the space it holds counts as free.
+    const dir = await storage.getDirectory();
+    for (const name of [MARKER_NAME, CACHE_NAME]) {
+      try { await dir.removeEntry(name); } catch (e) { if (e.name !== 'NotFoundError') throw e; }
+    }
     const { quota, usage } = await storage.estimate();
     const free = Math.max(0, quota - usage);
     if (free < file.size) {
@@ -90,8 +96,6 @@
       e.name = 'QuotaError';
       throw e;
     }
-    const dir = await storage.getDirectory();
-    await dir.removeEntry(MARKER_NAME).catch(() => {});
     await writeAll(await dir.getFileHandle(CACHE_NAME, { create: true }), file, onProgress, file.size);
     await writeAll(await dir.getFileHandle(MARKER_NAME, { create: true }), new Blob([String(file.size)]), null, 0);
     return (await dir.getFileHandle(CACHE_NAME)).getFile();
