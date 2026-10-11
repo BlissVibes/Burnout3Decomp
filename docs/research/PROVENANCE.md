@@ -10,7 +10,7 @@ Our repo license: MIT (Copyright 2026 BlissVibes).
 
 | Project | Author(s) | License | Where | Use (current) | Notes |
 |---|---|---|---|---|---|
-| ps2-web-recomp | snuri00 | MIT | https://github.com/snuri00/ps2-web-recomp | reference (candidate: derived) | PS2 EE static recompiler to C++ to WebAssembly, HLE EE kernel, IOP R3000 interpreter, WebGPU GS, SPU2, IPU, VU1 AOT/JIT. Runs GT4 and GoW II in-browser. Sibling: psp-web-recomp. |
+| ps2-web-recomp | snuri00 | MIT | https://github.com/snuri00/ps2-web-recomp | derived (fork at external/FORK.md) | PS2 EE static recompiler to C++ to WebAssembly, HLE EE kernel, IOP R3000 interpreter, WebGPU GS, SPU2, IPU, VU1 AOT/JIT. Runs GT4 and GoW II in-browser. Sibling: psp-web-recomp. |
 | Burnout3 (matching decomp) | siddharthakumar-98 | GPL-3.0 | https://github.com/siddharthakumar-98/Burnout3 | reference only | Byte-matching decomp of SLUS-21050 with CodeWarrior PS2 3.0.1b119. D0-D5 done, 129/5654 game functions matched (2.3%). GPL-3 is NOT compatible with our MIT repo: do not copy code. Binary map, symbol names, and toolchain findings may inform our own work only via independent re-derivation. |
 | GameMerge | siddharthakumar-98 | (check) | https://github.com/siddharthakumar-98/GameMerge | reference | Confirms CodeWarrior 2.4.1.01 / RenderWare 3.6 identification. |
 | reB3 | halcaponey (fork of lolz0r/reb3) | MIT | https://github.com/halcaponey/reb3 | reference (candidate: derived) | C reimplementation of Burnout 3 (Xbox default.xbe). Has Emscripten WebGL build, SDL2, gamepad, BGV reader/writer, Blender addon, docs/BGV_EXTRACTION.md, differential validators against the retail binary under Unicorn. |
