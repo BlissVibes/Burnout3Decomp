@@ -97,6 +97,13 @@ class Validate(unittest.TestCase):
         self.assertEqual(errors(table(row(0x00100000, 'a', kind='data', evidence='C', status='verified'))),
                          ['line 2: status verified is for kind func, not data'])
 
+    def test_draft_is_for_functions_only(self):
+        self.assertEqual(errors(table(row(0x00100000, 'a', status='draft'))), [])
+        self.assertEqual(errors(table(row(0x00100000, 'a', kind='label', status='draft'))),
+                         ['line 2: status draft is for kind func, not label'])
+        self.assertEqual(errors(table(row(0x00100000, 'a', kind='rodata', size='0x4', status='draft'))),
+                         ['line 2: status draft is for kind func, not rodata'])
+
     def test_rejects_carriage_returns_and_a_missing_final_newline(self):
         self.assertTrue(any('CR' in e for e in errors(GOOD.replace('\n', '\r\n'))))
         self.assertTrue(any('newline' in e for e in errors(GOOD.rstrip('\n'))))

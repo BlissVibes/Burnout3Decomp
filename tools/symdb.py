@@ -19,8 +19,9 @@ upper-case hex (0x70) or ? when unknown; a sized symbol must end at or before th
 except that labels may sit inside it. type is a C prototype or type and may be empty. owner is
 one of game rw rwa sce crt dirtysock logitech vu. evidence is one or more of the letters C
 (oracle-confirmed behaviour), S (string or constant anchor), X (call graph or cross-reference),
-R (reB3 crosswalk inference), G (guess). status is recomp, draft or verified; verified is for
-functions and needs evidence C.
+R (reB3 crosswalk inference), G (guess). status is recomp (only the recompiled code exists),
+draft (our C++ exists and passes its unit tests) or verified (it also passed the oracle corpus);
+draft and verified are for functions, and verified needs evidence C.
 
 The owners table lists address ranges (start inclusive, end exclusive, sorted, not overlapping)
 with the owner of the code in them: start end owner conf what, conf being high, medium or low.
@@ -165,8 +166,8 @@ def validate(text, ranges=None):
             bad('evidence %r is not one or more of the letters %s, each once' % (evidence, ' '.join(EVIDENCE)))
         if status not in STATUSES:
             bad('status %s is not one of %s' % (status, ' '.join(STATUSES)))
-        elif status == 'verified' and kind != 'func':
-            bad('status verified is for kind func, not %s' % kind)
+        elif status != 'recomp' and kind != 'func':
+            bad('status %s is for kind func, not %s' % (status, kind))
         elif status == 'verified' and 'C' not in evidence:
             bad('status verified needs evidence C')
         if value is not None:
