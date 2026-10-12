@@ -44,7 +44,7 @@ so the fork lives outside the repo and is pinned here instead.
 - `kernel: Deci2Call send requests fail like a retail console without a host`:
   `runtime/src/kernel.cpp`. Syscall 0x7C sub-commands 3 (ReqSend) and 7 (ExReqSend) return -1,
   so the kernel-library debug-TTY writer takes its error path instead of polling for a
-  completion that never comes; other sub-commands stay no-ops. Uncommitted. See
+  completion that never comes; other sub-commands stay no-ops. Commit `0995576`. See
   `docs/re/gap-005-deci2-tty-send-never-completes.md`.
 - `iop: implement the IOP heap service (AllocSysMemory, LoadIopHeap, block queries) and end a
   guest call on a fault`: `runtime/src/iop/sif.cpp`, `kernel.cpp`, `kernel.hpp`, `cpu.cpp`,
@@ -52,10 +52,17 @@ so the fork lives outside the repo and is pinned here instead.
   `AllocSysMemory(size, type, addr)` on the existing allocator; 3 loads a disc file to an IOP
   address). A fault inside `call_guest` ends the call and returns 0; fault logging stops after
   256 faults and `dump()` prints the total; sysclib memory writes below `kUserBase` are
-  reported (at most 16 lines). Uncommitted. See
+  reported (at most 16 lines). Commit `fca7bf4`. See
   `docs/re/gap-006-iop-heap-alloc-sysmemory-unhandled.md`.
 - `web: read the disc from Module.discFile when the page supplies one`: `host/web.cpp`.
   `ps2web_fetch` reads each disc chunk with `Module.discFile.slice(...).arrayBuffer()` when the
   page has set `Module.discFile` (a `File`), and falls back to the Range request on
   `Module.discUrl` otherwise. This repo's shell sets it from the picked ISO or the cached copy,
   so the server never holds the disc.
+- `spu2: write the mixer output areas every sample and test IRQA against them (RWA's IRQ
+  clock)`: `runtime/src/iop/spu2.cpp`, `runtime/src/system.cpp`. Each 32-sample mixer batch
+  now stores voice 1 and voice 3, the dry and wet L/R mixes (wet as silence, reverb is not
+  modelled) and core 0's output into their SPU2 RAM write-back areas at a 0x200-halfword
+  output position, and tests both cores' IRQA against every write, so an IRQA pointed into
+  those areas raises the SPU2 IRQ periodically as on a console. Host audio is unchanged.
+  State version 3 → 4. Commit `3e42c71`. See `docs/re/gap-007-spu2-output-areas-irq-clock.md`.

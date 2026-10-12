@@ -178,3 +178,6 @@ nothing sets. That is the next gap (007). Starting points: RWA.IRX code at `0x3D
 and `0x3FB30`–`0x3FCF4` (what it expects to set flag 0x14 bit 2), LIBSD's handlers
 `0x35DB8`/`0x374E0`, the HLE SPU2 ADMA/IRQ path in `runtime/src/iop/spu2.cpp`, and the EE
 state word at `0x0051BAA0`. Also still open: IOP `modload #18` is missing in the runtime.
+Gap 007 has since been diagnosed and fixed (the SPU2 mixer never wrote the output areas
+that clock RWA's engine): see `docs/re/gap-007-spu2-output-areas-irq-clock.md` and
+`docs/re/boot-log-009.md`.
