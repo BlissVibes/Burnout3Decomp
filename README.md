@@ -37,6 +37,29 @@ with `B3_LOG_CAP_BYTES` (bytes) and `B3_RUN_TIMEOUT` (seconds); 0 turns one off.
 
 Tests: `python3 -m unittest discover -s tests -p 'test_*.py'` and `node --test`.
 
+## Private deploy (Vercel)
+The built page contains the game's executable (`ps2web.data`) and its translated
+code (`ps2web.wasm`), so it only ever goes to a project behind a login: Vercel
+project `burnout3-web`, with Vercel Authentication switched on in Project →
+Settings → Deployment Protection before the first upload. The disc itself is never
+part of a deploy; every player picks their own ISO in the page.
+
+```
+tools/build-web.sh                      # page into ~/b3/out/web
+bash tools/deploy/deploy.sh             # dry run: stages ~/b3/out/deploy, uploads nothing
+bash tools/deploy/deploy.sh --yes       # links the project and deploys to production
+```
+The dry run copies the page, `ps2web.wasm`, `ps2web.data` and the scripts into
+`~/b3/out/deploy` (outside this repository), lists them with their sizes and prints
+the two `vercel` commands that `--yes` would run. `--yes` needs `npm i -g vercel`
+and `vercel login` once. `tools/deploy/vercel.json` sets the headers the page needs:
+`Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy` (threads need a
+cross-origin isolated page), `Cache-Control: no-cache` so a new build is picked up
+on the next load, and the `application/wasm` content type.
+
+A second developer gets in through a Protection Bypass link generated in the same
+settings page. Send it privately; never commit it.
+
 ## Controls
 Standard-mapping gamepads (DualSense, DualShock 4, Xbox) work through the
 browser. Keyboard: Z cross, X circle, A square, S triangle, Q/W L1/R1, 1/2
