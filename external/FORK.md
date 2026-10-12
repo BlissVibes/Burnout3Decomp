@@ -66,3 +66,15 @@ so the fork lives outside the repo and is pinned here instead.
   output position, and tests both cores' IRQA against every write, so an IRQA pointed into
   those areas raises the SPU2 IRQ periodically as on a console. Host audio is unchanged.
   State version 3 → 4. Commit `3e42c71`. See `docs/re/gap-007-spu2-output-areas-irq-clock.md`.
+- `harness: periodic snapshots, single-call function harness and a runtime hook registry`:
+  `host/main.cpp`, `CMakeLists.txt`, `runtime/include/ps2/system.hpp`, `generated.hpp`,
+  `runtime/src/system.cpp`, `kernel.cpp`, `memory.cpp`, `dispatch.cpp`; new
+  `runtime/include/ps2/harness.hpp`, `hook.hpp`, `runtime/src/harness.cpp`, `hooks.cpp`.
+  `--snapshot-every N --snapshot-dir DIR` saves a state every N frames (and a state due on the
+  last frame is now saved). `--call ADDR --snapshot FILE` runs one translated function on a
+  loaded state with nothing but the EE running (no events, no IOP, frozen time; blocking,
+  thread-changing and custom-handler syscalls abort) and writes the registers, changed memory
+  ranges, I/O stores and syscalls as JSON plus a `.mem` file. `-DPS2_HOOKS=<dir>` compiles a
+  folder of C++ functions that can replace translated ones when enabled with `--hook`; the
+  check is in `dispatch()` only, so direct calls are not replaced yet. State version stays 4.
+  Commit: `c31e314`. See `docs/re/function-harness-spec.md` and `docs/re/harness-log-001.md`.
