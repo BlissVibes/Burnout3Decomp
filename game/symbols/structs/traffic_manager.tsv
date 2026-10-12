@@ -1,0 +1,8 @@
+offset	size	type	name	evidence	note
+0x36348	0x4	u32	rng_state	XR	verified: traffic_manager_init (0x001632C0) stores 0xFD462907
+0x3634C	0x4	u32	rng_carry	XR	verified: traffic_manager_init stores 0x02B9D6F8
+0x363A0	?		field_363A0	XR	verified: zeroed by traffic_manager_init; meaning not recovered
+0x363A4	0x2	u16	next_row_trigger_a	XR	verified: zeroed by traffic_manager_init; meaning from reB3
+0x363A6	?		next_row_trigger_b	XR	verified: zeroed by traffic_manager_init; meaning from reB3
+0x363AB	0x1	u8	body_capacity	R	reB3: 0xFE; not looked for on PS2
+0x363AC	?		live_bodies	R	not looked for on PS2

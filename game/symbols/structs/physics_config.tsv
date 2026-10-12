@@ -1,0 +1,14 @@
+offset	size	type	name	evidence	note
+0x0000	?	char[]	cfg_path	RG	the sprintf-ed VehiclePhysics/<car>.cfg path the registrar passes in t0; that it starts this object is a guess
+0x00B8	0x4	f32	mass	XR	verified in vehicle_apply_config (0x00252530): copied to vehicle +0x1F0
+0x00BC	0x20	f32[8]	suspension	XR	verified in vehicle_apply_config (0x00252530): copied to vehicle +0xCA0..+0xCBC
+0x00DC	0x4	f32	wheel_attach_height	RG	vehicle_apply_config writes an attach height to each wheel +0x74; this being its source is inferred from the gap between the two ranges
+0x00E0	0x40	f32[16]	transmission_a	XR	verified in vehicle_apply_config (0x00252530): +0xE0..+0x12C goes to vehicle +0x1448..+0x1498
+0x0120	0x4	f32	rev_a_rpm	XR	verified in vehicle_apply_config (0x00252530): times 2*pi/60 into vehicle +0x148C
+0x0124	0x4	f32	rev_b_rpm	XR	verified in vehicle_apply_config (0x00252530): times 2*pi/60 into vehicle +0x1490
+0x0128	0x8	f32[2]	transmission_b	XR	verified in vehicle_apply_config (0x00252530)
+0x0130	0x70	f32[28]	tuning_a	XR	verified in vehicle_apply_config (0x00252530): +0x130..+0x1CC goes to vehicle +0x1360..+0x13F0
+0x01A0	0x4	f32	tuning_angle_a_degrees	XR	verified in vehicle_apply_config (0x00252530): degrees; converted and stored at vehicle +0x13D0
+0x01A4	0x10	f32[4]	tuning_b	XR	verified in vehicle_apply_config (0x00252530)
+0x01B4	0x4	f32	tuning_angle_b_degrees	XR	verified in vehicle_apply_config (0x00252530): degrees; (90 - x) converted and stored at vehicle +0x13DC
+0x01B8	0x18	f32[6]	tuning_c	XR	verified in vehicle_apply_config (0x00252530): last word is +0x1CC; reB3 gives the record 0x1D0 bytes

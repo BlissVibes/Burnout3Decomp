@@ -1,0 +1,6 @@
+offset	size	type	name	evidence	note
+0x0020	?		contact_normal	R	reB3: compared with the frame up axis
+0x0064	?		spring_length	R	
+0x0074	0x4	f32	attach_height	XR	verified in vehicle_apply_config (0x00252530): vehicle +0x894 for wheel 0
+0x0078	?		skid_state	R	vehicle +0x898 for wheel 0; reported, not re-checked
+0x00B3	0x1	u8	in_contact	R	vehicle +0x820 + i*0xC0 + 0xB3; reported, not re-checked

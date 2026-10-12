@@ -1,0 +1,72 @@
+offset	size	type	name	evidence	note
+0x014C	0x4	f32	steer_max	R	
+0x0154	0x4	f32	steer_max_velocity	R	
+0x0160	0x10	f32[4]	contact_point	R	start of the contact block +0x160..+0x198
+0x0170	0x10	f32[4]	contact_normal	R	
+0x0190	0x4	f32	steer_drag	R	
+0x0194	0x4	f32	contact_impact	R	
+0x0198	0x4	s32	contact_state	R	end of the contact block
+0x01D0	0x10	f32[4]	half_extents	R	
+0x01E0	0x10	f32[4]	centre_offset	R	
+0x01F0	0x4	f32	mass	XR	verified in vehicle_apply_config (0x00252530): copied from physics config +0xB8
+0x01F4	0x4	f32	com_height	R	
+0x01F8	?		restitution	R	reported, not re-checked
+0x0200	?		soup	R	reported, not re-checked
+0x0204	?		frame	R	reported, not re-checked
+0x0208	?		hull	R	reported, not re-checked
+0x020E	?		asleep	R	reported, not re-checked
+0x0210	?		crashed	R	reported, not re-checked
+0x0211	0x1	u8	landed	R	
+0x0212	0x1	u8	contact_flag_a	R	
+0x0213	0x1	u8	contact_flag_b	R	
+0x0215	0x1	u8	class_215	R	reB3 puts a class byte here; the verified PS2 reader uses +0x216
+0x0216	0x1	u8	vehicle_class	XR	verified: read by authority_band_lookup (0x001D0F50)
+0x0324	0x4	f32	grip_scalar	R	
+0x049C	0x4	f32	ground_clearance	R	
+0x0820	0x480	Wheel[6]	wheels	XR	verified in vehicle_apply_config (0x00252530): stride 0xC0, count at +0x1169; six slots is (0xCA0 - 0x820) / 0xC0, inferred; see wheel.tsv
+0x0CA0	0x20	f32[8]	suspension	XR	verified in vehicle_apply_config (0x00252530): copied from physics config +0xBC..+0xD8
+0x1160	0x2	u16	surface	R	
+0x1164	0x4	f32	steer_degrees	R	
+0x1168	0x1	u8	airborne	R	reported; one byte at most because wheel_count follows
+0x1169	0x1	u8	wheel_count	XR	verified in vehicle_apply_config (0x00252530): loop bound of the per-wheel copy (reB3 reads it as an int)
+0x1353	0x1	u8	crash_flags	XR	verified: authority_ladder (0x001D1130) sets bits 0x10, 0x8 and 0x2; reB3 also lists a float at +0x1350 that would overlap this byte
+0x1360	0x48	f32[18]	tuning_a	XR	verified in vehicle_apply_config (0x00252530): +0x1360..+0x13F0 is filled from physics config +0x130..+0x1CC (40 source words into 37 slots, so not one to one)
+0x13A8	0x4	f32	surface_grip	R	inside the verified config window
+0x13AC	0x24	f32[9]	tuning_b	XR	verified in vehicle_apply_config (0x00252530)
+0x13D0	0x4	f32	tuning_angle_a	XR	verified in vehicle_apply_config (0x00252530): config +0x1A0 in degrees, converted to radians and passed through fn_0011DE98
+0x13D4	0x8	f32[2]	tuning_c	XR	verified in vehicle_apply_config (0x00252530)
+0x13DC	0x4	f32	tuning_angle_b	XR	verified in vehicle_apply_config (0x00252530): (90 - config +0x1B4) in radians, passed through fn_0011DE98
+0x13E0	0x4	f32	aggr_time	R	inside the verified config window
+0x13E4	0x4	f32	aggr_total	R	inside the verified config window
+0x13E8	0x4	f32	aggr_angle	R	inside the verified config window
+0x13EC	0x4	f32	aggr_velocity	R	inside the verified config window
+0x13F0	0x4	f32	aggr_drag	R	last word of the verified config window
+0x13F4	0x4	Racecar *	racecar	R	reported, not re-checked
+0x13FC	0x1	u8	input_bits	R	
+0x1400	?		throttle	R	reported, not re-checked
+0x1404	?		brake	R	reported, not re-checked
+0x1408	?		aftertouch_axis_a	R	reported, not re-checked
+0x140C	?		aftertouch_axis_b	R	reported, not re-checked
+0x1410	?		camera_quaternion	R	reported, not re-checked
+0x1434	0x4	f32	drift_direction	R	
+0x1448	0x44	f32[17]	transmission_a	XR	verified in vehicle_apply_config (0x00252530): +0x1448..+0x1498 is filled from physics config +0xE0..+0x12C (20 source words into 21 slots, so not one to one)
+0x148C	0x4	f32	rev_a_rad_per_sec	XR	verified in vehicle_apply_config (0x00252530): config +0x120 times 2*pi/60 (rpm_to_rad_per_sec)
+0x1490	0x4	f32	rev_b_rad_per_sec	XR	verified in vehicle_apply_config (0x00252530): config +0x124 times 2*pi/60 (rpm_to_rad_per_sec)
+0x1494	0x8	f32[2]	transmission_b	XR	verified in vehicle_apply_config (0x00252530)
+0x149C	?		transmission_state_a	R	reported, not re-checked
+0x14C8	?		transmission_state_b	R	reported, not re-checked
+0x14CC	?		transmission_state_c	R	reported, not re-checked
+0x1520	0x4	f32	drive_torque	R	
+0x1524	0x4	s32	drift_state	R	reported, not re-checked
+0x152C	0x4	f32	immunity_timer	R	reported, not re-checked
+0x1530	?		crash_clock	R	reported, not re-checked
+0x1534	0x4	f32	authority	XR	verified: written by authority_ladder, read by chassis_world_crash_decision; ai_racer_driver stores 0.05
+0x153C	0x1	u8	hit_side	R	reported, not re-checked
+0x153E	0x1	u8	no_scrub	R	reported, not re-checked
+0x1550	0x1	u8	on_camera	XR	verified: read by authority_band_lookup (0x001D0F50)
+0x1558	?		player_relative_a	R	reported, not re-checked
+0x155C	?		player_relative_b	R	reported, not re-checked; reB3 scales it by 17.8816 for the catch-up bonus
+0x1560	?		player_relative_c	R	reported, not re-checked
+0x15CC	0x1	u8	surface_bit15	R	
+0x1690	0x4	f32	ooc_wall	R	
+0x1920	0x4	s32	racecar_class	R	

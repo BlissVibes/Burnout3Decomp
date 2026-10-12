@@ -1,0 +1,38 @@
+start	end	owner	conf	what
+0x00100008	0x00100270	crt	high	crt0 (Sony-style, MW-linked) and the constructor set-up at 0x00100240
+0x00100270	0x00102144	crt	high	MSL C++ runtime: exceptions, RTTI, the static-constructor runner
+0x00102380	0x00104000	sce	high	libgraph
+0x00104000	0x0010B000	sce	high	libmpeg and libipu
+0x0010B000	0x00115800	sce	high	libkernl: syscall stubs, Deci2/TTY, sifcmd, sifrpc, iopheap client, loadfile, init
+0x00116000	0x0011C000	sce	low	unidentified Sony library (libdma or libpkt/libvu0 is a guess)
+0x0011E800	0x0011FC00	sce	high	libcdvd
+0x00120000	0x00126D6C	crt	medium	Sony libm and libc core
+0x00126D6C	0x00127C80	crt	low	libc string functions without stack frames (strcat, strcpy, strlen); not in the groundwork boundary table
+0x00127C80	0x0012E85C	crt	high	Sony libc printf family
+0x0012EB30	0x00167D10	game	high	main wrapper, loader, front-end core, score and boost registrars
+0x00167D10	0x001996D0	game	high	three generated giant functions and the functions between them
+0x001996D0	0x001D0000	game	high	vehicles, damage, assets, collision, physics
+0x001D0000	0x001D7B94	game	high	AI drivers, platform and boot layer
+0x001D8260	0x00211C00	rw	high	RenderWare Graphics 3.6.0.3: core, sky2 driver, pipe/p2
+0x00211C00	0x002156A0	rw	low	unidentified: game or RenderWare toolkits; owner is a guess
+0x002156A0	0x00216D24	sce	high	libpad2 and libdbc
+0x00217750	0x00237274	game	medium	Criterion/EA network layer (Gt libraries, HTTP, UPnP) and the ValueDB core
+0x00237518	0x0023AD64	sce	high	libmrpc
+0x0023B000	0x002419C4	game	low	memory-card layer
+0x00241BC0	0x0024B25C	sce	high	libmc2, libinsck, libnetcnfif
+0x0024B2A0	0x002AB120	game	high	car and track loading, physics and AI registrars, vehicle audio
+0x002AB120	0x002AF2A4	rwa	low	RenderWare Audio client: command sender, reply pump; both ends approximate
+0x002AF2A4	0x002C26D4	game	medium	effects; start approximate (may still be the RWA client)
+0x002C28C0	0x002E265C	logitech	high	Speex codec, Logitech lgcodec and liblgaud
+0x002E2730	0x00303F14	game	high	crash and aftertouch, camera
+0x00304008	0x00306CB4	logitech	high	Logitech lgkbm
+0x003070B0	0x003D2FD4	game	high	front end, profiles, online UI, HUD, replays
+0x003D3158	0x003D462C	sce	low	unidentified Sony RPC client (libdnas2 or libscf is a guess)
+0x003D46A0	0x00400758	game	medium	HUD and online; end approximate
+0x00400758	0x0041BCF0	dirtysock	low	EA DirtySock and other network library code (a library crc32 at 0x0041B840); start approximate; the export table and the function at 0x0041BF18 after it are unassigned
+0x0041BFE8	0x0041C84C	sce	medium	prebuilt ELF/IRX image parser, identity unknown
+0x0041C900	0x00442F14	game	high	save data, DNAS glue, second physics registrar
+0x00443888	0x004451DC	logitech	high	Logitech liblgdev
+0x00445310	0x00469AB4	game	high	replays and keyframes, EA login, debug sentinel
+0x004843D0	0x004854E8	sce	high	libkernl kernel-patch blobs, copied into kernel RAM; never run in place
+0x004D3E00	0x004DD7E4	game	high	static initialisers (MW)

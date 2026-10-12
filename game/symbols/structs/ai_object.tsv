@@ -1,0 +1,29 @@
+offset	size	type	name	evidence	note
+0x0004	0x4	Racecar *	racecar	R	
+0x0180	?		target_point	R	arbitrated target point, world space
+0x01D0	?		follower_speed_ceiling	R	
+0x01D4	?		road_section	R	
+0x01D8	?		road_node_index	R	
+0x01F8	?		target_mode	R	values 0, 1, 2, 4
+0x0200	?		aim_position	R	
+0x0280	?		aim_offset	R	aim minus car position
+0x0298	?		corner_speed	R	
+0x0738	?		avoidance_speed	R	
+0x075C	?		arbitrator_state	R	
+0x0770	?		desired_direction	R	+0x770..+0x77C
+0x0780	?		speed_ceiling	R	
+0x0784	?		time_to_target	R	seconds
+0x0790	?		aggression_state	R	PS2 offset reported to match, not re-checked
+0x0794	?		aggression_target	R	PS2 offset reported to match, not re-checked
+0x09C0	0x4	f32	target_steer_degrees	R	PS2 offsets +0x9C0..+0x9DC reported to match, not re-checked
+0x09C4	0x4	f32	target_speed	R	m/s
+0x09C8	?		time_to_target_snapshot	R	
+0x09CC	?		previous_steer_angle	R	
+0x09D0	?		corner_law_speed	R	
+0x09D4	?		yaw_rate_error	R	
+0x09DC	0x4	f32	catchup_bonus	R	
+0x09F8	?		difficulty_mode	R	
+0x0A08	0x4	f32	speed_cap	R	PS2 offset reported to match, not re-checked
+0x0A18	0x1	u8	boost_armed	R	PS2 offset reported to match, not re-checked
+0x0A19	0x1	u8	wants_boost	R	PS2 offset reported to match, not re-checked
+0x0A31	0x1	u8	flag_a31	R	PS2 offset reported to match, not re-checked; meaning not recovered

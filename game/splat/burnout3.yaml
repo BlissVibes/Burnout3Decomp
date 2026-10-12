@@ -1,0 +1,88 @@
+# splat configuration for SLUS_210.50 (Burnout 3: Takedown, NTSC-U). Reading aid only: this project
+# is a functional decompilation, so nothing here is built or matched.
+#
+# Not run yet: written against the splat documentation (docs/Configuration.md and docs/Segments.md)
+# and still to be tried with splat itself.
+#
+# Everything splat reads or writes stays outside the repository. base_path is absolute because splat
+# resolves the other paths against it and does not expand "~"; change it on another machine.
+#   target_path        the game's ELF where the fork already keeps it (read only, never copied)
+#   symbol_addrs_path  written by: python3 tools/symdb.py export-splat game/symbols/SLUS_210.50.tsv
+#                      -o ~/b3/out/splat/symbol_addrs.txt
+#
+# Offsets are file offsets: address - 0xFFF00 (one RWX PT_LOAD, file offset 0x100 at 0x00100000,
+# 0x3E2680 bytes in the file, 0x1DCEA00 in memory). A subsegment runs to the start of the next one,
+# so each also holds the unassigned code after its library. Boundaries come from
+# game/symbols/SLUS_210.50.owners.tsv and docs/research/decomp-groundwork.md section 2.
+name: Burnout 3 Takedown (SLUS_210.50)
+options:
+  platform: ps2
+  compiler: MWCCPS2
+  basename: burnout3
+  base_path: /home/mark/b3/out/splat
+  target_path: /home/mark/b3/ps2-web-recomp/games/burnout3/disc/SLUS_210.50
+  asm_path: asm
+  src_path: src
+  build_path: build
+  cache_path: .splat_cache
+  ld_script_path: burnout3.ld
+  symbol_addrs_path: symbol_addrs.txt
+  undefined_funcs_auto_path: undefined_funcs_auto.txt
+  undefined_syms_auto_path: undefined_syms_auto.txt
+  gp_value: 0x004E8670
+  find_file_boundaries: False
+  disasm_unknown: True
+  subalign: null
+segments:
+  - name: main
+    type: code
+    start: 0x100
+    vram: 0x00100000
+    bss_size: 0x19EC380
+    subsegments:
+      - [0x100, asm, crt0]                       # 0x00100000  crt0; the entry point is 0x00100008
+      - [0x370, asm, msl_runtime]                # 0x00100270  MSL C++ runtime, static-constructor runner
+      - [0x2480, asm, libgraph]                  # 0x00102380
+      - [0x4100, asm, libmpeg]                   # 0x00104000  libmpeg and libipu
+      - [0xB100, asm, libkernl]                  # 0x0010B000
+      - [0x16100, asm, sce_unknown_116000]       # 0x00116000  unidentified Sony library
+      - [0x1C100, asm, unknown_11C000]           # 0x0011C000  not in the boundary table; holds the angle helper at 0x0011DE98
+      - [0x1E900, asm, libcdvd]                  # 0x0011E800
+      - [0x20100, asm, libc_core]                # 0x00120000  Sony libm and libc
+      - [0x26E6C, asm, libc_strings]             # 0x00126D6C  frame-less string functions
+      - [0x27D80, asm, libc_printf]              # 0x00127C80
+      - [0x2EC30, asm, game_main_loader]         # 0x0012EB30  main wrapper, loader, front-end core, score and boost registrars
+      - [0x67E10, asm, game_giants]              # 0x00167D10  three generated giant functions
+      - [0x997D0, asm, game_vehicles]            # 0x001996D0  vehicles, damage, assets, collision, physics
+      - [0xD0100, asm, game_ai_platform]         # 0x001D0000  AI drivers, platform and boot layer
+      - [0xD8360, asm, renderware]               # 0x001D8260  RenderWare Graphics 3.6.0.3
+      - [0x111D00, asm, unknown_211C00]          # 0x00211C00  game or RenderWare toolkits
+      - [0x1157A0, asm, libpad2_libdbc]          # 0x002156A0
+      - [0x117850, asm, game_gt_valuedb]         # 0x00217750  Gt network layer and the ValueDB core
+      - [0x137618, asm, libmrpc]                 # 0x00237518
+      - [0x13B100, asm, game_memcard]            # 0x0023B000
+      - [0x141CC0, asm, libmc2]                  # 0x00241BC0  libmc2, libinsck, libnetcnfif
+      - [0x14B3A0, asm, game_car_physics_audio]  # 0x0024B2A0  car and track loading, physics and AI registrars, vehicle audio
+      - [0x1AB220, asm, rwa_client]              # 0x002AB120  RenderWare Audio client; both ends approximate
+      - [0x1AF3A4, asm, game_effects]            # 0x002AF2A4
+      - [0x1C29C0, asm, speex_lgaud]             # 0x002C28C0  Speex, Logitech lgcodec and liblgaud
+      - [0x1E2830, asm, game_crash_camera]       # 0x002E2730
+      - [0x204108, asm, lgkbm]                   # 0x00304008
+      - [0x2071B0, asm, game_frontend]           # 0x003070B0  front end, profiles, online UI, HUD, replays
+      - [0x2D3258, asm, sce_unknown_rpc]         # 0x003D3158  unidentified Sony RPC client
+      - [0x2D47A0, asm, game_hud_online]         # 0x003D46A0
+      - [0x300858, asm, dirtysock]               # 0x00400758  EA DirtySock; start approximate
+      - [0x31BDF0, data, image_export_table]     # 0x0041BCF0  74 words of addresses, not code
+      - [0x31BF18, asm, unknown_41BE18]          # 0x0041BE18
+      - [0x31C0E8, asm, image_parser]            # 0x0041BFE8  prebuilt ELF/IRX image parser
+      - [0x31CA00, asm, game_save]               # 0x0041C900  save data, DNAS glue, second physics registrar
+      - [0x343988, asm, lgdev]                   # 0x00443888
+      - [0x345410, asm, game_replays]            # 0x00445310  replays, EA login, debug sentinel
+      - [0x369E80, data, data]                   # 0x00469D80  strings, tables, the libkernl kernel-patch blobs at 0x004843D0 (code that never runs in place)
+      - [0x3D3F00, asm, static_init]             # 0x004D3E00  158 static initialisers
+      - [0x3DD920, ctor, ctors]                  # 0x004DD820  static-constructor table, 158 pointers
+      - [0x3DDB98, data, data_after_ctors]       # 0x004DDA98
+      - [0x3E07A0, lit4, literals]               # 0x004E06A0  gp-addressed float literal pool
+      - [0x3E2000, data, sdata_tail]             # 0x004E1F00  small data to the end of the file image
+      - { start: 0x3E2780, type: bss, vram: 0x004E2680, name: bss } # 0x004E2680  cleared by crt0, runs to 0x01ECEA00
+  - [0x3E2780]

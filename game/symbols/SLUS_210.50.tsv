@@ -1,0 +1,207 @@
+address	name	kind	size	type	owner	evidence	status	note
+0x00100008	crt0_entry	func	?		crt	X	recomp	ELF entry: zeroes registers, clears bss, SetupThread, SetupHeap
+0x00100240	cpp_ctor_setup	func	?		crt	X	recomp	first call of main_wrapper; leads to static_ctor_runner
+0x00100810	static_ctor_runner	func	?	void static_ctor_runner(void)	crt	X	recomp	walks static_ctor_table, jalr at 0x0010083C; docs/re/gap-001
+0x0010BA04	syscall_stubs	label	?		sce	X	recomp	one 16-byte stub per syscall number, 145 numbers, to 0x0010C294
+0x0010C2B0	gs_wait_vblank	func	?		sce	X	recomp	Sony sceGsSyncV(0): polls the INTC status register at 0x0010C2F0; docs/re/gap-002
+0x0010C2F0	gs_wait_vblank_poll	label	?		sce	X	recomp	the status-register poll loop; docs/re/gap-002
+0x0010D010	deci2_call	func	?		sce	X	recomp	wrapper for syscall 0x7C Deci2Call; docs/re/gap-005
+0x0010D3E8	tty_write	func	?		sce	X	recomp	EE kernel-library TTY writer over Deci2; docs/re/gap-005
+0x0010D508	tty_write_poll	label	?		sce	X	recomp	loop calling deci2_call (sub-command 4) while tty_send_busy is set; docs/re/gap-005
+0x0010F1E8	fn_0010F1E8	func	?		sce	X	recomp	SIF RPC client entry called by the iopheap wrappers (docs/re/function-harness-spec.md)
+0x00113028	iopheap_bind	func	?		sce	X	recomp	binds SIF RPC server 0x80000003 once; docs/re/gap-006
+0x001130B0	fn_001130B0	func	?		sce	X	recomp	first libkernl iopheap wrapper (wrappers run to 0x00113500); docs/re/gap-006
+0x00113120	iopheap_alloc_sysmem	func	?	u32 iopheap_alloc_sysmem(u32 type, u32 size, u32 addr)	sce	X	recomp	iopheap method 4; send buffer order is size, type, addr; returns 0 on failure; docs/re/gap-006
+0x00114E60	interrupts_disable	func	?		sce	X	recomp	plain di helper; docs/re/gap-002
+0x00114EB8	interrupts_enable	func	?		sce	X	recomp	plain ei helper; docs/re/gap-002
+0x00114ED0	fn_00114ED0	func	?		sce	X	recomp	libkernl init: two CreateSema calls, ids stored in libkernl_sema_ids
+0x00115108	libkernl_init	func	?		sce	X	recomp	called from crt0 after SetupHeap
+0x0011DE98	fn_0011DE98	func	?		crt	X	recomp	angle helper called by vehicle_apply_config on values in radians (libm, guess); outside the boundary table
+0x001213B8	libc_exit_path	label	?		crt	X	recomp	exit path named in the boundary table; reported, not re-checked; not a call target, so not known to be a function start
+0x00125338	qsort	func	?	void qsort(void *base, u32 count, u32 size, int (*compare)(const void *, const void *))	crt	XR	recomp	called by physics_frame at 0x001B8FFC with sap_compare_x; 21 callers
+0x00126EC8	strcat	func	?	char *strcat(char *dst, const char *src)	crt	X	recomp	called three times by valuedb_register
+0x001272D0	strcpy	func	?	char *strcpy(char *dst, const char *src)	crt	X	recomp	called by valuedb_register
+0x001273E8	strlen	func	?	u32 strlen(const char *s)	crt	X	recomp	called by valuedb_hash_key and valuedb_register
+0x0012EB30	main_wrapper	func	?		game	X	recomp	C-runtime main wrapper called by crt0
+0x00133190	loader_dispatch	func	?		game	SX	recomp	switch on loader_state (cases 0 to 0xF); calls ai_params_registrar at 0x0013375C; docs/re/gap-007
+0x00143B10	ai_racecar_update	func	?		game	RG	draft	not in the verifier sample; guess
+0x00143FA0	ai_catchup	func	?		game	R	draft	not in the verifier sample; loads a second 17.8816 literal (0x004E0EC4)
+0x00144180	ai_aggression_speed_leg	func	?		game	R	draft	not in the verifier sample
+0x00144E70	ai_target_speed	func	?		game	R	draft	not in the verifier sample
+0x001450C0	ai_target_angle	func	?		game	R	draft	not in the verifier sample
+0x00145A10	ai_frame_head	func	?		game	R	draft	not in the verifier sample
+0x0014E670	boost_bar_registrar	func	?		game	SXR	recomp	reB3 0x0017A0F0; 5 calls to valuedb_register with "Boost Bar" and Score.cfg; confidence M
+0x0015D0A0	score_registrar	func	?		game	SR	draft	not in the verifier sample; 82 references to Score.cfg (reB3 says 79 registrations); "Score/Burnout Points" referenced 31 times
+0x00161310	fn_00161310	func	?		game	X	recomp	called by the three giants with static_pool_manager (unregister/unlink/return to pool, guess)
+0x001613B0	fn_001613B0	func	?		game	X	recomp	called by the three giants with static_pool_manager
+0x00161B50	traffic_agent_speed	func	?		game	R	draft	not in the verifier sample
+0x001632C0	traffic_manager_init	func	?		game	SXR	recomp	reB3 0x001A3EA0; frame-less leaf; stores the seeds to object +0x3634C and +0x36348; called once from traffic_btv_load
+0x00163DD0	fn_00163DD0	func	?		game	X	recomp	called by the three giants with static_pool_manager
+0x00163E90	fn_00163E90	func	?		game	X	recomp	called by the three giants
+0x00166F50	traffic_btv_load	func	?		game	XR	draft	not in the verifier sample; verified only as the sole caller of traffic_manager_init
+0x00167D10	generated_giant_a	func	0x93D0		game	XG	recomp	37,840 bytes, one jr ra, 127 repeats of one block; release/reset over an object tree is a guess
+0x00172000	fn_00172000	func	?		game	X	recomp	called by the three giants
+0x00173D30	generated_giant_b	func	0x127C0		game	XG	recomp	75,712 bytes, 255 repeats; called by the other two giants and by itself
+0x00186850	generated_giant_c	func	0x12E80		game	XG	recomp	77,440 bytes, 254 repeats; ends at 0x001996D0
+0x0019A550	fn_0019A550	func	?		game	X	recomp	single caller of physics_frame
+0x001AB6B0	rigid_body_world_contact	func	?		game	R	draft	not in the verifier sample
+0x001AC470	rigid_body_integrate	func	0xF10		game	XR	recomp	reB3 0x00109560; VU0 macro-mode body with no callees; confidence M
+0x001AD380	hull_relink	func	?		game	RG	draft	not in the verifier sample; guess
+0x001B41D0	traffic_promote_to_vehicle	func	?		game	R	draft	not in the verifier sample
+0x001B4BF0	carcol_resolve_wreck	func	?		game	SR	draft	not in the verifier sample; verified only as a referrer of crashability_table
+0x001B5AA0	carcol_resolve_traffic	func	?		game	SR	draft	not in the verifier sample; verified only as a referrer of crashability_table
+0x001B6380	carcol_resolve_racer_racer	func	0xEA0		game	SXR	recomp	reB3 0x001121F0; three loads of 17.8816 (f32_004E1698), crashability_table at 0x001B68BC; sole caller carcol_pair_dispatch
+0x001B7220	carcol_pair_dispatch	func	?		game	XR	draft	not in the verifier sample; verified only as the sole caller of carcol_resolve_racer_racer
+0x001B82F0	fn_001B82F0	func	?		game	X	recomp	referrer of crashability_table
+0x001B89D0	class_update_loop_a	func	?		game	R	draft	not in the verifier sample; per-class update loop; name is ours
+0x001B8B70	class_update_loop_b	func	?		game	R	draft	not in the verifier sample; per-class update loop; name is ours
+0x001B8D20	class_update_loop_c	func	?		game	R	draft	not in the verifier sample; per-class update loop; name is ours
+0x001B8F00	physics_frame	func	0x920		game	XR	recomp	reB3 0x00110AF0; qsort on physworld+0x1E5F0 (element 8, count +0x1CB74); player-car stride 0x4590; single caller 0x0019A550
+0x001B9820	sap_compare_x	func	0x24	int sap_compare_x(const void *a, const void *b)	game	XR	recomp	reB3 0x00110AD0; nine-instruction leaf: compares the first float of each record, returns -1 or 1
+0x001B9850	class_update_loop_d	func	?		game	R	draft	not in the verifier sample; per-class update loop; name is ours
+0x001BB6E0	aftertouch_update	func	?		game	R	draft	not in the verifier sample
+0x001BD6A0	fn_001BD6A0	func	?		game	X	recomp	caller of vehicle_crashed_step; reported
+0x001BE250	fn_001BE250	func	?		game	X	recomp	caller of rigid_body_integrate; reported
+0x001BF170	skid_classifier	func	?		game	RG	draft	not in the verifier sample; guess
+0x001BFE80	physics_manager_pre_update	func	?		game	RG	draft	not in the verifier sample; guess; called once by vehicle_frame at 0x00268C5C
+0x001C0F00	vehicle_input_stage	func	?		game	SR	draft	not in the verifier sample; loads 2.2374146 (f32_004E0D78) and 0.44704
+0x001C1B20	vehicle_force_pass	func	?		game	XR	recomp	reB3 0x0011D460; frame 0x1540; called by vehicle_substep_run at 0x001C4580; confidence M
+0x001C1C3C	vehicle_force_pass_false_split	label	?		game	X	recomp	not a function start: false split caused by dat_00491840 decoding as a jal to here
+0x001C38F0	engine_gearbox_update	func	?		game	R	draft	not in the verifier sample
+0x001C44E0	vehicle_substep_run	func	0x3B0		game	XR	recomp	the 2 x dt/2 substep body of reB3 0x0011BE50; calls vehicle_force_pass, rigid_body_integrate twice, chassis_world_crash_decision
+0x001C4890	vehicle_crashed_step	func	?		game	XR	recomp	crashed-path per-car step (no single reB3 twin); frame 0x190; confidence M
+0x001C5080	soup_gather	func	?		game	R	draft	not in the verifier sample
+0x001C5330	soup_filter_racing	func	?		game	R	draft	not in the verifier sample
+0x001C5430	chassis_world_crash_decision	func	0xDE0		game	SXR	recomp	reB3 0x0011AEF0; 27.5 times authority (+0x1534) at 0x001C5E1C; the two loads of f32_004E0E1C (0.707); callers vehicle_substep_run and vehicle_crashed_step
+0x001C6600	fn_001C6600	func	?		game	X	recomp	caller of vehicle_apply_config; references "HEVYCAR5"
+0x001CC900	suspension_pass	func	?		game	R	draft	not in the verifier sample
+0x001CDB70	wheel_prepass	func	?		game	R	draft	not in the verifier sample
+0x001CE470	crash_mode_solver	func	?		game	R	draft	not in the verifier sample; also a caller of rigid_body_integrate
+0x001CFC00	collision_object_init	func	?		game	RG	draft	not in the verifier sample; guess
+0x001D0F50	authority_band_lookup	func	0x1E0		game	SXR	recomp	reB3 0x00105FC0; class byte +0x216, on-camera byte +0x1550; called only by authority_ladder
+0x001D1130	authority_ladder	func	0x540		game	SXR	recomp	reB3 0x00105BD0; stores authority to +0x1534, flag bits at +0x1353; single caller racecar_class_update
+0x001D17D0	ai_racer_driver	func	0x800		game	SXR	recomp	reB3 0x00105340; 13.4112, -13.4112, 8.9408, 9.549296; reads ai_params +0x1C and +0x20
+0x001D1FD0	ai_traffic_driver	func	?		game	SR	recomp	reB3 0x00105150; loads 13.4112 at 0x001D21C4 and 8.9408 at 0x001D2180; confidence M
+0x001D2790	ai_driver_dispatch	func	?		game	XR	draft	not in the verifier sample; verified only as the sole caller of ai_racer_driver
+0x001D2960	racecar_class_update	func	?		game	XR	draft	not in the verifier sample; verified only as the sole caller of authority_ladder
+0x001D82A8	rw_chunk_header_read	func	?		rw	SX	recomp	chunk-header reader; library-id mask and version 0x36003 at 0x001D8304
+0x001D89B8	fn_001D89B8	func	?		rw	X	recomp	RenderWare error-report pair with fn_001D8A80: 262 call sites
+0x001D8A80	fn_001D8A80	func	?		rw	X	recomp	RenderWare error-report pair with fn_001D89B8
+0x001E2178	rw_camera_set_projection	func	?		rw	S	recomp	references "Invalid projection type specified"
+0x001F19C0	rw_path3_mask_wait	label	?		rw	X	recomp	waits for GIF_STAT M3P after MSKPATH3; docs/re/gap-003
+0x001F1A28	rw_gif_fifo_wait	label	?		rw	X	recomp	waits for GIF_STAT FQC to become non-zero; docs/re/gap-004
+0x00216E40	fn_00216E40	func	?		game	X	recomp	second harness target: reads floats at a0+220 and a0+224, f12, f13; returns f0
+0x0021B9B0	valuedb_register_c	func	?		game	SXR	recomp	registrar variant; calls valuedb_hash_key at 0x0021BA38; 37 call sites
+0x0021BB60	valuedb_register	func	0x220		game	SXR	recomp	reB3 0x001AEE20; a0 db+0x10, a1 float field, a2 name, a3 group, t0 cfg path, t1 type, t2 flags, f12 min, f13 max; 613 call sites; key composition inlined at 0x0021BBB0
+0x0021BD80	valuedb_register_b	func	?		game	SXR	recomp	registrar variant; calls valuedb_hash_key at 0x0021BE1C; 55 call sites
+0x0021BFA0	valuedb_hash_key	func	0x70	u32 valuedb_hash_key(const char *key)	game	SXR	recomp	reB3 0x001AF250; table CRC from -1 with no final invert; key bytes are fetched sign-extended and the index is not masked
+0x002370A0	vblank_intc_handler	func	?		game	X	recomp	INTC line 2 handler: signals up to four semaphores from vblank_sema_ids; docs/re/gap-002
+0x00252100	traffic_physics_registrar	func	?		game	SXR	recomp	reB3 0x00134AC0; 9 calls to valuedb_register
+0x00252530	vehicle_apply_config	func	0x2C0		game	XR	recomp	reB3 0x00134710; copies physics config +0xB8..+0x1CC into the live vehicle (game/symbols/structs); callers 0x001C6600 and vehicle_physics_setup
+0x002527F0	rpm_to_rad_per_sec	func	?		game	X	recomp	multiplies by 2*pi/60; used by vehicle_apply_config for config +0x120 and +0x124
+0x00252C20	vehicle_physics_registrar	func	?		game	SXR	recomp	reB3 0x00132D10; exactly 64 calls to valuedb_register; "Physics/Drift" referenced 18 times
+0x002540A0	vehicle_physics_setup	func	?		game	R	draft	not in the verifier sample; caller of vehicle_apply_config
+0x002540E0	vehicle_physics_defaults	func	?		game	R	draft	not in the verifier sample
+0x00268970	vehicle_frame	func	?		game	XR	recomp	reB3 0x0011BE50; calls vehicle_substep_run twice and vehicle_crashed_step once; no direct callers (vtable); confidence M
+0x00271A80	ai_params_registrar	func	?		game	SXR	recomp	reB3 0x0016AFD0; 69 + 4 = 73 registrations; called only by loader_dispatch with a0 = ai_params
+0x0028ED30	sound_skids_registrar	func	?		game	R	draft	not in the verifier sample
+0x002AEFC0	rwa_command_send	func	?		rwa	X	recomp	sends a command to RWA.IRX (code 0x49 with the IOP buffer and size after an alloc); docs/re/gap-006
+0x002AF2A0	rwa_reply_pump	func	?		rwa	X	recomp	thread body waiting on a semaphore at 0x002AF328 for RWA replies; docs/re/boot-log-008, gap-007
+0x002ED690	sound_surface_registrar	func	?		game	R	draft	not in the verifier sample
+0x002F7E70	camera_registrar_b	func	?		game	R	draft	not in the verifier sample; sibling of camera_follow_registrar
+0x002F8870	camera_follow_registrar	func	?		game	R	draft	not in the verifier sample
+0x003093E0	btv_parse	func	?		game	S	recomp	.btv parser named in the boundary table; reported
+0x00334010	fn_00334010	func	?		game	X	recomp	caller of rigid_body_integrate; reported
+0x00344310	rumble_registrar	func	?		game	S	recomp	rumble and boost-jolt ValueDB registrar; reported
+0x00389700	pack_fixed16	func	?	u32 pack_fixed16(f32 x, s8 fraction_bits, int sign_magnitude)	game	X	recomp	float to 16-bit fixed point; v0 is zero-extended; first harness target (docs/re/function-harness-spec.md)
+0x0041B840	fn_0041B840	func	?		dirtysock	X	recomp	library crc32 using crc32_table_copy; reported
+0x0041B9C0	fn_0041B9C0	func	?		dirtysock	X	recomp	library crc32 using crc32_table_copy; reported
+0x0041BCF0	image_export_table	rodata	0x128	u32[74]	sce	X	recomp	mixes libkernl/libcdvd/libmrpc function addresses with data addresses; seeded the false function at 0x00484890
+0x0042A4E0	vehicle_physics_registrar_b	func	?		game	S	recomp	registers the second VehiclePhysics/%s.cfg user
+0x004843D0	kernel_patch_blobs	data	?		sce	X	recomp	three blobs copied to kernel RAM as syscall 0x5B/0x5A/0x83 handlers, to 0x004854E8; never run in place
+0x00484890	libkernl_sema_ids	data	0x8	s32[2]	sce	X	recomp	not code: recompiler false function (seeded from image_export_table); two semaphore ids
+0x00491840	dat_00491840	rodata	0x4		game	X	recomp	data word that decodes as jal 0x001C1C3C; the cause of the false split in vehicle_force_pass
+0x0049B110	crc32_table	rodata	0x400	u32[256]	game	S	recomp	standard reflected CRC-32 table (0xEDB88320); used only by valuedb_hash_key; recompute it, never copy it
+0x0049FE60	dat_0049FE60	data	?		rwa	X	recomp	EE stream table entry of sound\generic.awd; busy bit 0x10 in the word at +0x1C; docs/re/gap-007
+0x004B1500	msl_rtti_strings	rodata	0x1B0		crt	S	recomp	std::exception, std::bad_exception and the Metrowerks base-class chains
+0x004B3868	str_bug_in_vfprintf_bad_base	string	0x1A	char[26]	crt	S	recomp	1 code reference, first from the function near 0x001295D0
+0x004B5AF0	str_data_frontend_txd	string	0x12	char[18]	game	S	recomp	1 code reference, first from the function near 0x00131480
+0x004B5B10	str_data_stagehed_bin	string	0x12	char[18]	game	S	recomp	1 code reference, first from the function near 0x00131480
+0x004B5CD8	str_pveh_vlist_bin	string	0xF	char[15]	game	S	recomp	1 code reference, first from the function near 0x00133190
+0x004B5D28	str_data_vdb_xml	string	0xD	char[13]	game	S	recomp	1 code reference, first from the function near 0x00133190
+0x004B5D40	str_tracks_tlist_bin	string	0x11	char[17]	game	S	recomp	1 code reference, first from the function near 0x00133190
+0x004B5D80	str_world_time_5f	string	0x10	char[16]	game	S	recomp	2 code references, first from the function near 0x00134A20
+0x004B5EF0	str_export_valuedb_score_cfg	string	0x1C	char[28]	game	S	recomp	5 code references, first from the function near 0x0014E670
+0x004B5F50	str_boost_bar	string	0xA	char[10]	game	S	recomp	5 code references, first from the function near 0x0014E670
+0x004B6290	str_export_valuedb_score_cfg_004B6290	string	0x1C	char[28]	game	S	recomp	82 code references, first from the function near 0x0015D0A0
+0x004B6AD0	str_score_burnout_points	string	0x15	char[21]	game	S	recomp	31 code references, first from the function near 0x0015D0A0
+0x004B7218	str_ghost_car	string	0xA	char[10]	game	S	recomp	1 code reference, first from the function near 0x0019A950
+0x004B7328	str_unbrokenglass	string	0xE	char[14]	game	S	recomp	1 code reference, first from the function near 0x0019EBF0
+0x004B7360	str_vehicleunderside	string	0x11	char[17]	game	S	recomp	1 code reference, first from the function near 0x0019EBF0
+0x004B73E0	str_aftertouch	string	0xB	char[11]	game	S	recomp	no code reference found
+0x004B7A80	str_export_valuedb_physics_cad_cfg	string	0x22	char[34]	game	S	recomp	no code reference found
+0x004B7B80	crashability_table	rodata	0x31	u8[7][7]	game	SR	recomp	referenced by carcol_resolve_racer_racer, carcol_resolve_wreck, carcol_resolve_traffic and fn_001B82F0
+0x004B7D28	str_hevycar5	string	0x9	char[9]	game	S	recomp	2 code references, first from the function near 0x001BF580
+0x004B7D78	str_hevycar9	string	0x9	char[9]	game	S	recomp	1 code reference, first from the function near 0x001C1B20
+0x004B7D88	str_hevycar36	string	0xA	char[10]	game	S	recomp	1 code reference, first from the function near 0x001C1B20
+0x004B7DD0	authority_band_table	rodata	0x14	f32[5]	game	SR	recomp	referenced only by authority_band_lookup
+0x004B82B0	str_invalid_projection_type_specified	string	0x22	char[34]	rw	S	recomp	1 code reference, first from the function near 0x001E2178
+0x004B9C90	str_gtcommva_04d	string	0xD	char[13]	game	S	recomp	3 code references, first from the function near 0x0021B9B0
+0x004BA030	str_burnout3_ps2_2004	string	0x12	char[18]	game	S	recomp	1 code reference, first from the function near 0x00230C50
+0x004BB7E0	str_export_valuedb_vehiclephysics_s_cfg	string	0x28	char[40]	game	S	recomp	1 code reference, first from the function near 0x00252100
+0x004BB8B0	str_export_valuedb_vehiclephysics_s_cfg_004BB8B0	string	0x28	char[40]	game	S	recomp	1 code reference, first from the function near 0x00252C20
+0x004BBDB8	str_physics_drift	string	0xE	char[14]	game	S	recomp	18 code references, first from the function near 0x00252C20
+0x004BBDC8	str_slide_max	string	0xA	char[10]	game	S	recomp	1 code reference, first from the function near 0x00252C20
+0x004BCF10	str_export_valuedb_ai_defaults_cfg	string	0x22	char[34]	game	S	recomp	no code reference found
+0x004BED60	str_tracks_crash_d_rws	string	0x13	char[19]	game	S	recomp	2 code references, first from the function near 0x0027B820
+0x004BF160	str_sound_crashmod_awd	string	0x13	char[19]	game	S	recomp	1 code reference, first from the function near 0x00281C30
+0x004BF750	str_sound_generic_awd	string	0x12	char[18]	game	S	recomp	no code reference found
+0x004BF820	str_sound_generic_awd_004BF820	string	0x12	char[18]	game	S	recomp	1 code reference, first from the function near 0x0028BDD0
+0x004BF990	str_export_valuedb_vehicleaudio_s_cfg	string	0x26	char[38]	game	S	recomp	1 code reference, first from the function near 0x0028C780
+0x004BFD08	str_sound_skids	string	0xC	char[12]	game	S	recomp	no code reference found
+0x004BFDE0	str_sound_generic_awd_004BFDE0	string	0x12	char[18]	game	S	recomp	no code reference found
+0x004C0930	str_sound_generic_awd_004C0930	string	0x12	char[18]	game	S	recomp	1 code reference, first from the function near 0x00290900
+0x004C4AA8	str_gamedata_bgd	string	0xD	char[13]	game	S	recomp	no code reference found
+0x004C54E8	str_vibuf_c	string	0x8	char[8]	game	S	recomp	1 code reference, first from the function near 0x00326340
+0x004C57B8	str_static_dat	string	0xB	char[11]	game	S	recomp	1 code reference, first from the function near 0x00332E00
+0x004C7220	language_code_words	rodata	0x28		game	S	recomp	not code: recompiler false function; two-letter language codes stored as words, pointed to by language_code_ptrs
+0x004C7270	language_code_ptrs	rodata	?		game	X	recomp	pointer table to language_code_words; made the recompiler seed a false function there
+0x004CA348	str_streamed_dat	string	0xD	char[13]	game	S	recomp	1 code reference, first from the function near 0x003C3430
+0x004D0BF0	crc32_table_copy	rodata	0x400	u32[256]	dirtysock	S	recomp	second copy of the same table, referenced only by the library crc32 at 0x0041B840 and 0x0041B9C0
+0x004D1600	str_export_valuedb_vehiclephysics_s_cfg_004D1600	string	0x28	char[40]	game	S	recomp	1 code reference, first from the function near 0x0042A4E0
+0x004D1B68	dat_004D1B68	data	?		game	X	recomp	not code: recompiler false function from the pointer-table pass
+0x004D3B88	str_tag_sentinel	string	0xD	char[13]	game	S	recomp	no code reference found
+0x004D3E00	fn_004D3E00	func	?		game	X	recomp	first static initialiser (lowest target of static_ctor_table)
+0x004DD7E0	fn_004DD7E0	func	?		game	X	recomp	last static initialiser (highest target of static_ctor_table)
+0x004DD820	static_ctor_table	ctor	0x278	void (*[158])(void)	crt	X	recomp	158 pointers, zero word before and after; docs/re/gap-001
+0x004E06B0	f32_004E06B0	rodata	0x4	f32	game	S	recomp	gp literal pool: 0.99; shared by eight functions
+0x004E0790	f32_004E0790	rodata	0x4	f32	game	S	recomp	gp literal pool: 9.549296 (60 / 2 pi)
+0x004E0B18	f32_004E0B18	rodata	0x4	f32	game	S	recomp	gp literal pool: 0.03; authority floor in authority_ladder
+0x004E0D78	f32_004E0D78	rodata	0x4	f32	game	S	recomp	gp literal pool: 2.2374146 (m/s to mph); loaded by vehicle_input_stage
+0x004E0DA4	f32_004E0DA4	rodata	0x4	f32	game	S	recomp	gp literal pool: -13.4112; ai_racer_driver
+0x004E0DA8	f32_004E0DA8	rodata	0x4	f32	game	S	recomp	gp literal pool: 8.9408 (20 mph in m/s); ai_racer_driver and ai_traffic_driver
+0x004E0DAC	f32_004E0DAC	rodata	0x4	f32	game	S	recomp	gp literal pool: 13.4112 (30 mph in m/s); ai_racer_driver and ai_traffic_driver
+0x004E0DE8	f32_004E0DE8	rodata	0x4	f32	game	S	recomp	gp literal pool: 2.2374146 (m/s to mph); loaded by vehicle_force_pass
+0x004E0DEC	f32_004E0DEC	rodata	0x4	f32	game	S	recomp	gp literal pool: 0.44704 (mph to m/s); loaded by vehicle_force_pass
+0x004E0E1C	f32_004E0E1C	rodata	0x4	f32	game	S	recomp	gp literal pool: 0.707; loaded twice by chassis_world_crash_decision
+0x004E163C	f32_004E163C	rodata	0x4	f32	game	S	recomp	gp literal pool: 150.0; carcol_resolve_racer_racer
+0x004E1648	f32_004E1648	rodata	0x4	f32	game	S	recomp	gp literal pool: 30.0; carcol_resolve_racer_racer
+0x004E1698	f32_004E1698	rodata	0x4	f32	game	S	recomp	gp literal pool: 17.8816 (40 mph in m/s); loaded three times by carcol_resolve_racer_racer
+0x004E1A00	ai_group_name_ptrs	data	?		game	X	recomp	gp-relative pointer words to the AI group-name strings, to 0x004E1A20
+0x004E1D14	gamedata_bgd_name_ptr	data	0x4	const char *	game	X	recomp	gp-relative pointer word to "Gamedata.bgd"
+0x004E2680	bss_start	bss	?		crt	X	recomp	end of the file-backed image; bss runs to heap_start and is cleared by crt0
+0x004E2920	valuedb_instance	bss	0x4	ValueDb *	game	X	recomp	gp word; registrars receive this pointer + 0x10
+0x004E3B9C	tty_send_busy	bss	?		sce	X	recomp	flag polled by tty_write_poll; docs/re/gap-005
+0x004E7240	iopheap_client	bss	?		sce	X	recomp	SIF RPC client data; docs/re/gap-006
+0x004E7280	iopheap_reply	bss	0x4	u32	sce	X	recomp	4-byte RPC reply; docs/re/gap-006
+0x004E72C0	iopheap_send_buffer	bss	?		sce	X	recomp	RPC send buffer; docs/re/gap-006
+0x004E8670	gp_base	bss	?		crt	SX	recomp	the gp value (.reginfo, crt0 at 0x00100198); small data is gp-0x8000 to gp+0x7FFF
+0x004EE040	loader_object	bss	?		game	X	recomp	the object main passes to loader_dispatch; docs/re/boot-log-008
+0x0051BAA0	loader_state	bss	0x4	u32	game	X	recomp	state word loader_dispatch switches on; docs/re/gap-007
+0x00527440	static_pool_manager	bss	?		game	XG	recomp	about 221 KB; the object the giants operate on
+0x01D80700	vblank_sema_ids	bss	?		game	X	recomp	up to four semaphore ids signalled by vblank_intc_handler; docs/re/gap-002
+0x01D9CE80	crt0_args	bss	?		crt	X	recomp	args area passed to SetupThread
+0x01E754E0	ai_params	bss	?		game	XR	recomp	reB3 DAT_0047A140; ai_racer_driver reads +0x1C and +0x20
+0x01E78A30	rng_state	bss	0x8	u32[2]	game	XR	recomp	global PRNG pair; the generator is inlined at its use sites; reported
+0x01E81004	dat_01E81004	bss	?		rwa	X	recomp	IOP address of the RWA buffer, stored by the caller at 0x002AD0DC; docs/re/gap-006
+0x01ECEA00	heap_start	bss	?		crt	X	recomp	end of bss; SetupHeap base
