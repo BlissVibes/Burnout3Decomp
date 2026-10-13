@@ -160,3 +160,59 @@ The ten functions and their shims agree with the recompiled code on this corpus,
 take evidence `C`. The remaining doubt is confined to the items under "Not covered", of which
 only the first (the flags being raised from a clear state) concerns behaviour the functions
 are meant to have.
+
+## Follow-up, 2026-10-12: cleared flags and 64-bit arguments
+
+The first two items under "Not covered" are now tested. Fork: c31e314 plus an uncommitted
+change to the harness (`runtime/include/ps2/harness.hpp`, `runtime/src/harness.cpp`,
+`host/main.cpp`):
+- `--fcr31 HEX` sets the FPU control/status register before the call (`--fcr31 0` clears the
+  sticky flags and the condition bit).
+- `--a0 x64:HEX` (and the same for `a1`-`a3`, `t0`-`t3`) sets all 64 bits of an argument
+  register. The plain form is unchanged: 32 bits, sign-extended.
+
+Both show in the JSON `before` block, which is the register file as the function is entered:
+a check call with `--a0 x64:123456789ABCDEF8 --fcr31 0` records
+`"0000000000000000123456789abcdef8"` for `a0` and `"fcr31":"0x00000000"`. Rebuild rc 0, no
+warnings. `tools/difftest.py` passes argument vectors through untouched, so the driver and its
+tests did not change. No function file and no shim changed.
+
+| Run | Cases per snapshot | Pass | Fail | Skip | Result line |
+|---|---|---|---|---|---|
+| `select_gear_under_rev_limit`, `--fcr31 0` | 290 | 3,480 | 0 | 0 | `select_gear_under_rev_limit: 3480 pass, 0 fail, 0 skip` |
+| `build_texture_uv_rect`, `--fcr31 0` | 70 | 840 | 0 | 0 | `build_texture_uv_rect: 840 pass, 0 fail, 0 skip` |
+| `find_key64_slot`, 64-bit keys | 15 | 180 | 0 | 0 | `find_key64_slot: 180 pass, 0 fail, 0 skip` |
+
+Commands: as in "Commands" above, with `--args "--fcr31 0"` added in front of the same case
+files for the first two (`--returns v0 --strict` and `--returns= --strict`), and the new case
+file `find_key64_slot_x64.txt` with `--returns v0` for the third. Outputs are in
+`~/b3/out/diff/select_gear_fcr31_0/`, `build_texture_uv_rect_fcr31_0/` and
+`find_key64_slot_x64/`.
+
+What the cleared-flag runs exercised (recompiled side, `fcr31` on entry and on return):
+- gear function: `0x00000000` to `0x00030000` in 768 cases (the zero-divisor cases; the flags
+  are raised from clear), to `0x00800000` in 768 (the condition bit alone), unchanged in 1,944;
+- UV rectangle: `0x00000000` to `0x00030000` in 336 cases, unchanged in 504.
+
+The deliberately broken copy. A copy of the hooks under `~/b3/out/harness02/hooks_no_or/` in
+which the gear shim does not OR the flags, same command with `--fcr31 0`:
+`select_gear_under_rev_limit: 2712 pass, 768 fail, 0 skip`, rc 1, every failure of the form
+`s000300_c004 FAIL fcr31 0x00030000 != 0x00000000`. The 768 failures are the 64 zero-divisor
+cases on each of the twelve snapshots, exactly the cases where the recompiled side raises
+the flags. The same broken copy without `--fcr31 0` gives `3480 pass, 0 fail, 0 skip`, which
+confirms that the first run could not see this mistake. The build was then pointed back at
+the repo's hooks.
+
+The 64-bit key cases: tables of 1 to 128 keys searched with full 64-bit keys given as
+`--a1 x64:HEX`. Present and absent keys that share their low word with other slots and
+differ only above bit 31 (one, two or thirty-two high bits), bit 63 alone, a zero-extended
+against a sign-extended bit-31 value in both orders, all ones against `0x00000000FFFFFFFF`,
+and a hit in the last of 128 slots whose keys differ from an absent key only in bits 48 and 49.
+Results on the recompiled side: -1 in 72 cases, slot 0 in 36, slot 1 in 36, slot 2 in 24,
+slot 127 in 12.
+
+Still not covered: the stale `f3` beyond the two values the corpus holds (the harness has no
+option for scratch float registers), and the out-of-domain inputs.
+
+Totals with the follow-up: 26,964 cases, 0 fail, 0 skip.
+

@@ -78,3 +78,9 @@ so the fork lives outside the repo and is pinned here instead.
   folder of C++ functions that can replace translated ones when enabled with `--hook`; the
   check is in `dispatch()` only, so direct calls are not replaced yet. State version stays 4.
   Commit: `c31e314`. See `docs/re/function-harness-spec.md` and `docs/re/harness-log-001.md`.
+- `harness: --fcr31 and 64-bit argument registers for --call`: `runtime/include/ps2/harness.hpp`,
+  `runtime/src/harness.cpp`, `host/main.cpp`. `--fcr31 HEX` sets the FPU control/status
+  register before the call, so sticky flags can be tested from a clear state; `--a0 x64:HEX`
+  (any of `a0`-`a3`, `t0`-`t3`) sets all 64 bits of an argument register, the plain form stays
+  32 bits sign-extended. Commit: `5b782b3`. See the follow-up in `docs/re/harness-log-002.md`.
+
