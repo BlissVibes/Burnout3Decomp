@@ -26,7 +26,7 @@ spec = importlib.util.spec_from_file_location('symdb', os.path.join(os.path.dirn
 symdb = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(symdb)
 
-MILESTONE = '4 Decompilation'
+MILESTONE = '4 Decomp into the scaffold'      # the milestone's name in docs/PROGRESS.md
 
 
 def summarise(symbols, owners):

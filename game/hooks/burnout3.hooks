@@ -1,0 +1,11 @@
+0x00145E70 ring_index_advance
+0x001478C0 ring_index_is_at_or_ahead
+0x001B9820 sap_compare_x
+0x001C6F30 select_gear_under_rev_limit
+0x0021BFA0 valuedb_hash_key
+0x002518E0 find_key64_slot
+0x002934D0 path_extension_after_dot
+0x00299550 lowest_set_bit_index
+0x0035EFA0 compare_wide_strings
+0x003713A0 build_texture_uv_rect
+0x00389700 pack_fixed16

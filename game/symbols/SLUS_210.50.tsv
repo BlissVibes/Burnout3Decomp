@@ -30,8 +30,8 @@ address	name	kind	size	type	owner	evidence	status	note
 0x00144E70	ai_target_speed	func	?		game	R	recomp	not in the verifier sample
 0x001450C0	ai_target_angle	func	?		game	R	recomp	not in the verifier sample
 0x00145A10	ai_frame_head	func	?		game	R	recomp	not in the verifier sample
-0x00145E70	ring_index_advance	func	0x74	u16 ring_index_advance(const RingDesc *desc, u16 index, s16 delta)	game	X	draft	steps a 16-bit ring index; wrap = (i+d+cap)%cap truncating, clamp = [0,cap-1]; delta 0 returns a1 unchanged; docs/re/decomp-log-001.md
-0x001478C0	ring_index_is_at_or_ahead	func	0x90	s32 ring_index_is_at_or_ahead(const RingDesc *desc, u32 idx_a, u32 idx_b)	game	X	draft	header via desc+4 (count u16 +12, wrap u8 +14); non-wrap d>=0, wrap d in [0,half) or d<-half; docs/re/decomp-log-001.md
+0x00145E70	ring_index_advance	func	0x74	u16 ring_index_advance(const RingDesc *desc, u16 index, s16 delta)	game	CX	verified	steps a 16-bit ring index; wrap = (i+d+cap)%cap truncating, clamp = [0,cap-1]; delta 0 returns a1 unchanged; docs/re/decomp-log-001.md; oracle: menu01 corpus, fork c31e314, docs/re/harness-log-002.md
+0x001478C0	ring_index_is_at_or_ahead	func	0x90	s32 ring_index_is_at_or_ahead(const RingDesc *desc, u32 idx_a, u32 idx_b)	game	CX	verified	header via desc+4 (count u16 +12, wrap u8 +14); non-wrap d>=0, wrap d in [0,half) or d<-half; docs/re/decomp-log-001.md; oracle: menu01 corpus, fork c31e314, docs/re/harness-log-002.md
 0x0014E670	boost_bar_registrar	func	?		game	SXR	recomp	reB3 0x0017A0F0; 5 calls to valuedb_register with "Boost Bar" and Score.cfg; confidence M
 0x0015D0A0	score_registrar	func	?		game	SR	recomp	not in the verifier sample; 82 references to Score.cfg (reB3 says 79 registrations); "Score/Burnout Points" referenced 31 times
 0x00161310	fn_00161310	func	?		game	X	recomp	called by the three giants with static_pool_manager (unregister/unlink/return to pool, guess)
@@ -59,7 +59,7 @@ address	name	kind	size	type	owner	evidence	status	note
 0x001B8B70	class_update_loop_b	func	?		game	R	recomp	not in the verifier sample; per-class update loop; name is ours
 0x001B8D20	class_update_loop_c	func	?		game	R	recomp	not in the verifier sample; per-class update loop; name is ours
 0x001B8F00	physics_frame	func	0x920		game	XR	recomp	reB3 0x00110AF0; qsort on physworld+0x1E5F0 (element 8, count +0x1CB74); player-car stride 0x4590; single caller 0x0019A550
-0x001B9820	sap_compare_x	func	0x28	s32 sap_compare_x(const void *a, const void *b)	game	XR	draft	reB3 0x00110AD0; qsort comparator on the first float of 8-byte records, EE ordered-less-than, -1 or +1, never 0; docs/re/decomp-log-001.md
+0x001B9820	sap_compare_x	func	0x28	s32 sap_compare_x(const void *a, const void *b)	game	CXR	verified	reB3 0x00110AD0; qsort comparator on the first float of 8-byte records, EE ordered-less-than, -1 or +1, never 0; docs/re/decomp-log-001.md; oracle: menu01 corpus, fork c31e314, docs/re/harness-log-002.md
 0x001B9850	class_update_loop_d	func	?		game	R	recomp	not in the verifier sample; per-class update loop; name is ours
 0x001BB6E0	aftertouch_update	func	?		game	R	recomp	not in the verifier sample
 0x001BD6A0	fn_001BD6A0	func	?		game	X	recomp	caller of vehicle_crashed_step; reported
@@ -76,7 +76,7 @@ address	name	kind	size	type	owner	evidence	status	note
 0x001C5330	soup_filter_racing	func	?		game	R	recomp	not in the verifier sample
 0x001C5430	chassis_world_crash_decision	func	0xDE0		game	SXR	recomp	reB3 0x0011AEF0; 27.5 times authority (+0x1534) at 0x001C5E1C; the two loads of f32_004E0E1C (0.707); callers vehicle_substep_run and vehicle_crashed_step
 0x001C6600	fn_001C6600	func	?		game	X	recomp	caller of vehicle_apply_config; references "HEVYCAR5"
-0x001C6F30	select_gear_under_rev_limit	func	0x60	s32 select_gear_under_rev_limit(TransmissionBlock *t, f32 divisor, f32 dividend)	game	SX	draft	gp constant pi/30 at 0x004E0D80; first 1-based ratio entry with mult*(r*ratio) <= limit, stores value at +84 (stale f3 when count<=1); callers 0x001BEEA4 0x001C0A68 0x001D1770; docs/re/decomp-log-001.md
+0x001C6F30	select_gear_under_rev_limit	func	0x60	s32 select_gear_under_rev_limit(TransmissionBlock *t, f32 divisor, f32 dividend)	game	CSX	verified	gp constant pi/30 at 0x004E0D80; first 1-based ratio entry with mult*(r*ratio) <= limit, stores value at +84 (stale f3 when count<=1); callers 0x001BEEA4 0x001C0A68 0x001D1770; docs/re/decomp-log-001.md; oracle: menu01 corpus, fork c31e314, docs/re/harness-log-002.md
 0x001CC900	suspension_pass	func	?		game	R	recomp	not in the verifier sample
 0x001CDB70	wheel_prepass	func	?		game	R	recomp	not in the verifier sample
 0x001CE470	crash_mode_solver	func	?		game	R	recomp	not in the verifier sample; also a caller of rigid_body_integrate
@@ -97,9 +97,9 @@ address	name	kind	size	type	owner	evidence	status	note
 0x0021B9B0	valuedb_register_c	func	?		game	SXR	recomp	registrar variant; calls valuedb_hash_key at 0x0021BA38; 37 call sites
 0x0021BB60	valuedb_register	func	0x220		game	SXR	recomp	reB3 0x001AEE20; a0 db+0x10, a1 float field, a2 name, a3 group, t0 cfg path, t1 type, t2 flags, f12 min, f13 max; 613 call sites; key composition inlined at 0x0021BBB0
 0x0021BD80	valuedb_register_b	func	?		game	SXR	recomp	registrar variant; calls valuedb_hash_key at 0x0021BE1C; 55 call sites
-0x0021BFA0	valuedb_hash_key	func	0x70	s32 valuedb_hash_key(const char *key)	game	SXR	draft	reB3 0x001AF250; reflected CRC-32 table from -1, no final invert, signed state with arithmetic shift; bytes >= 0x80 index below the table (out of domain); docs/re/decomp-log-001.md
+0x0021BFA0	valuedb_hash_key	func	0x70	s32 valuedb_hash_key(const char *key)	game	CSXR	verified	reB3 0x001AF250; reflected CRC-32 table from -1, no final invert, signed state with arithmetic shift; bytes >= 0x80 index below the table (out of domain); docs/re/decomp-log-001.md; oracle: menu01 corpus, fork c31e314, docs/re/harness-log-002.md
 0x002370A0	vblank_intc_handler	func	?		game	X	recomp	INTC line 2 handler: signals up to four semaphores from vblank_sema_ids; docs/re/gap-002
-0x002518E0	find_key64_slot	func	0x3C	s32 find_key64_slot(const KeyTable *table, u64 key)	game	X	draft	linear search of u64 keys at +1032 over signed count at +4, first match or -1; siblings 0x00251920 0x002519B0 0x00251EF0 return 1 on miss; docs/re/decomp-log-001.md
+0x002518E0	find_key64_slot	func	0x3C	s32 find_key64_slot(const KeyTable *table, u64 key)	game	CX	verified	linear search of u64 keys at +1032 over signed count at +4, first match or -1; siblings 0x00251920 0x002519B0 0x00251EF0 return 1 on miss; docs/re/decomp-log-001.md; oracle: menu01 corpus, fork c31e314, docs/re/harness-log-002.md
 0x00252100	traffic_physics_registrar	func	?		game	SXR	recomp	reB3 0x00134AC0; 9 calls to valuedb_register
 0x00252530	vehicle_apply_config	func	0x2C0		game	XR	recomp	reB3 0x00134710; copies physics config +0xB8..+0x1CC into the live vehicle (game/symbols/structs); callers 0x001C6600 and vehicle_physics_setup
 0x002527F0	rpm_to_rad_per_sec	func	?		game	X	recomp	multiplies by 2*pi/60; used by vehicle_apply_config for config +0x120 and +0x124
@@ -109,8 +109,8 @@ address	name	kind	size	type	owner	evidence	status	note
 0x00268970	vehicle_frame	func	?		game	XR	recomp	reB3 0x0011BE50; calls vehicle_substep_run twice and vehicle_crashed_step once; no direct callers (vtable); confidence M
 0x00271A80	ai_params_registrar	func	?		game	SXR	recomp	reB3 0x0016AFD0; 69 + 4 = 73 registrations; called only by loader_dispatch with a0 = ai_params
 0x0028ED30	sound_skids_registrar	func	?		game	R	recomp	not in the verifier sample
-0x002934D0	path_extension_after_dot	func	0x58	const char *path_extension_after_dot(const char *s)	game	X	draft	pointer after the last '.', start pointer if none; index 0 never tested; callers 0x002A5414 0x002AAF68; docs/re/decomp-log-001.md
-0x00299550	lowest_set_bit_index	func	0x38	u8 lowest_set_bit_index(u32 mask)	game	X	draft	ctz over 32 positions, 32 for zero; 126 callers in 0x00297C7C-0x002B38D4; docs/re/decomp-log-001.md
+0x002934D0	path_extension_after_dot	func	0x58	const char *path_extension_after_dot(const char *s)	game	CX	verified	pointer after the last '.', start pointer if none; index 0 never tested; callers 0x002A5414 0x002AAF68; docs/re/decomp-log-001.md; oracle: menu01 corpus, fork c31e314, docs/re/harness-log-002.md
+0x00299550	lowest_set_bit_index	func	0x38	u8 lowest_set_bit_index(u32 mask)	game	CX	verified	ctz over 32 positions, 32 for zero; 126 callers in 0x00297C7C-0x002B38D4; docs/re/decomp-log-001.md; oracle: menu01 corpus, fork c31e314, docs/re/harness-log-002.md
 0x002AEFC0	rwa_command_send	func	?		rwa	X	recomp	sends a command to RWA.IRX (code 0x49 with the IOP buffer and size after an alloc); docs/re/gap-006
 0x002AF2A0	rwa_reply_pump	func	?		rwa	X	recomp	thread body waiting on a semaphore at 0x002AF328 for RWA replies; docs/re/boot-log-008, gap-007
 0x002ED690	sound_surface_registrar	func	?		game	R	recomp	not in the verifier sample
@@ -119,9 +119,9 @@ address	name	kind	size	type	owner	evidence	status	note
 0x003093E0	btv_parse	func	?		game	S	recomp	.btv parser named in the boundary table; reported
 0x00334010	fn_00334010	func	?		game	X	recomp	caller of rigid_body_integrate; reported
 0x00344310	rumble_registrar	func	?		game	S	recomp	rumble and boost-jolt ValueDB registrar; reported
-0x0035EFA0	compare_wide_strings	func	0x78	s32 compare_wide_strings(const u16 *s1, const u16 *s2)	game	X	draft	UTF-16 code-unit order, unsigned, returns -1/0/+1; callers 0x00366E00 0x003A5234 0x003A53EC 0x003A56BC 0x003A572C; docs/re/decomp-log-001.md
-0x003713A0	build_texture_uv_rect	func	0x7C	void build_texture_uv_rect(f32 *out_uv, u32 flip_flags, f32 x, f32 y, f32 w, f32 h, f32 tex_w, f32 tex_h)	game	X	draft	UV rect u0,v0,u1,v1 by EE divides; bit0 swaps U, bit1 swaps V; dead stack copy; 49 callers incl. 38 static initialisers; docs/re/decomp-log-001.md
-0x00389700	pack_fixed16	func	?	u32 pack_fixed16(f32 x, s8 fraction_bits, int sign_magnitude)	game	X	recomp	float to 16-bit fixed point; v0 is zero-extended; first harness target (docs/re/function-harness-spec.md)
+0x0035EFA0	compare_wide_strings	func	0x78	s32 compare_wide_strings(const u16 *s1, const u16 *s2)	game	CX	verified	UTF-16 code-unit order, unsigned, returns -1/0/+1; callers 0x00366E00 0x003A5234 0x003A53EC 0x003A56BC 0x003A572C; docs/re/decomp-log-001.md; oracle: menu01 corpus, fork c31e314, docs/re/harness-log-002.md
+0x003713A0	build_texture_uv_rect	func	0x7C	void build_texture_uv_rect(f32 *out_uv, u32 flip_flags, f32 x, f32 y, f32 w, f32 h, f32 tex_w, f32 tex_h)	game	CX	verified	UV rect u0,v0,u1,v1 by EE divides; bit0 swaps U, bit1 swaps V; dead stack copy; 49 callers incl. 38 static initialisers; docs/re/decomp-log-001.md; oracle: menu01 corpus, fork c31e314, docs/re/harness-log-002.md
+0x00389700	pack_fixed16	func	0xB0	u16 pack_fixed16(u32 x_bits, s8 fraction_bits, bool signed_format)	game	CX	verified	float to 16-bit fixed point; v0 is zero-extended; first harness target (docs/re/function-harness-spec.md); oracle: menu01 corpus, 1320 cases, fork c31e314, docs/re/harness-log-001.md
 0x0041B840	fn_0041B840	func	?		dirtysock	X	recomp	library crc32 using crc32_table_copy; reported
 0x0041B9C0	fn_0041B9C0	func	?		dirtysock	X	recomp	library crc32 using crc32_table_copy; reported
 0x0041BCF0	image_export_table	rodata	0x128	u32[74]	sce	X	recomp	mixes libkernl/libcdvd/libmrpc function addresses with data addresses; seeded the false function at 0x00484890

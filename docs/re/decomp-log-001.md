@@ -32,20 +32,22 @@ wide-string compare) and `ring_buffers` (both ring-index helpers), so the set is
 
 | Retail address | Our name | Subsystem (dir, namespace) | Size | Unit test | Skeptic verdicts | Status |
 |---|---|---|---|---|---|---|
-| `0x0021BFA0` | `valuedb_hash_key` | `valuedb` (`b3::valuedb`) | 0x70 | passes (vectors + 21k model compares) | 1 refuted (out of domain only), 1 not | draft |
-| `0x001B9820` | `sap_compare_x` | `physics` (`b3::physics`) | 0x28 | passes (30x30 pool) | not refuted x2 | draft |
-| `0x00299550` | `lowest_set_bit_index` | `audio` (`b3::audio`) | 0x38 | passes (6,250 checks) | not refuted x2 (2^32 sweep) | draft |
-| `0x0035EFA0` | `compare_wide_strings` | `frontend` (`b3::frontend`) | 0x78 | passes (45 checks) | not refuted x2 | draft |
-| `0x003713A0` | `build_texture_uv_rect` | `load_screen_sprites` (`b3::load_screen_sprites`) | 0x7C | passes (234 checks) | not refuted x2 | draft |
-| `0x001478C0` | `ring_index_is_at_or_ahead` | `ring_buffers` (`b3::ring_buffers`) | 0x90 | passes (2,374 checks) | not refuted x2 | draft |
-| `0x00145E70` | `ring_index_advance` | `ring_buffers` (`b3::ring_buffers`) | 0x74 | passes (57 checks) | not refuted x2 | draft |
-| `0x002518E0` | `find_key64_slot` | `registry` (`b3::registry`) | 0x3C | passes (36 checks) | not refuted x2 | draft |
-| `0x001C6F30` | `select_gear_under_rev_limit` | `physics` (`b3::physics`) | 0x60 | passes (223 checks) | not refuted x2 | draft |
-| `0x002934D0` | `path_extension_after_dot` | `audio` (`b3::audio`) | 0x58 | passes (39 checks) | not refuted x2 | draft |
+| `0x0021BFA0` | `valuedb_hash_key` | `valuedb` (`b3::valuedb`) | 0x70 | passes (vectors + 21k model compares) | 1 refuted (out of domain only), 1 not | verified |
+| `0x001B9820` | `sap_compare_x` | `physics` (`b3::physics`) | 0x28 | passes (30x30 pool) | not refuted x2 | verified |
+| `0x00299550` | `lowest_set_bit_index` | `audio` (`b3::audio`) | 0x38 | passes (6,250 checks) | not refuted x2 (2^32 sweep) | verified |
+| `0x0035EFA0` | `compare_wide_strings` | `frontend` (`b3::frontend`) | 0x78 | passes (45 checks) | not refuted x2 | verified |
+| `0x003713A0` | `build_texture_uv_rect` | `load_screen_sprites` (`b3::load_screen_sprites`) | 0x7C | passes (234 checks) | not refuted x2 | verified |
+| `0x001478C0` | `ring_index_is_at_or_ahead` | `ring_buffers` (`b3::ring_buffers`) | 0x90 | passes (2,374 checks) | not refuted x2 | verified |
+| `0x00145E70` | `ring_index_advance` | `ring_buffers` (`b3::ring_buffers`) | 0x74 | passes (57 checks) | not refuted x2 | verified |
+| `0x002518E0` | `find_key64_slot` | `registry` (`b3::registry`) | 0x3C | passes (36 checks) | not refuted x2 | verified |
+| `0x001C6F30` | `select_gear_under_rev_limit` | `physics` (`b3::physics`) | 0x60 | passes (223 checks) | not refuted x2 | verified |
+| `0x002934D0` | `path_extension_after_dot` | `audio` (`b3::audio`) | 0x58 | passes (39 checks) | not refuted x2 | verified |
 
 Sizes are the code words from the entry to the delay slot of the return, excluding alignment
 padding. Evidence codes: `S` string or constant anchor, `X` call graph, `R` reB3 inference,
-`C` oracle-confirmed (none yet).
+`C` oracle-confirmed (all ten, see below).
+
+Update 2026-10-12: the oracle run of `docs/re/harness-log-002.md` passed all ten (22,464 cases, 0 fail, 0 skip over the twelve menu01 snapshots, fork c31e314), so every row is now `verified` with evidence `C`; that log records two caveats: the divide-by-zero flag path of `select_gear_under_rev_limit` and `build_texture_uv_rect` is not exercised because every snapshot already carries `0x30000` in `fcr31`, and `find_key64_slot` was searched with sign-extended 32-bit keys only.
 
 ## Functions
 

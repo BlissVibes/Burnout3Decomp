@@ -88,7 +88,7 @@ class Render(unittest.TestCase):
         cells = [c.strip() for c in line.strip('|').split('|')]
         self.assertEqual(len(cells), 4)
         self.assertEqual(cells[0], '2026-10-12')
-        self.assertEqual(cells[1], '4 Decompilation')
+        self.assertEqual(cells[1], '4 Decomp into the scaffold')
         self.assertEqual(cells[2], 'in progress')
         self.assertIn('verified 2 functions, 160 bytes (5.20%)', cells[3])
         self.assertTrue(line.startswith('| ') and line.endswith(' |'))
@@ -119,7 +119,7 @@ class CommandLine(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(len(lines), 2)
         self.assertTrue(lines[0].startswith('game code 3,072 bytes'))
-        self.assertTrue(lines[1].startswith('| 2026-10-12 | 4 Decompilation | in progress | '))
+        self.assertTrue(lines[1].startswith('| 2026-10-12 | 4 Decomp into the scaffold | in progress | '))
 
     def test_an_invalid_table_exits_1(self):
         with tempfile.TemporaryDirectory() as folder:
