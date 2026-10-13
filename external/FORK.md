@@ -202,3 +202,23 @@ so the fork lives outside the repo and is pinned here instead.
   `runtime/src/vu_jit.cpp`. The WebAssembly VU JIT emits the same correction for ADD, ADDi, ADDq,
   ADDbc and their forms into ACC only: the whole rule left the VU thread no idle time in the race.
   Costs 8 to 10 points of VU-thread time in Burnout 3's race. By Opus 2. Commit `f2f31d2`. Same doc.
+- `gif: the PATH3 hold buffer keeps a read position instead of erasing from the front`:
+  `runtime/src/gs/gif.cpp`. Data held while PATH3 is masked was erased from the front of a byte
+  vector at each release (moving everything behind it), and the vector's storage was given away
+  when it emptied. A release now moves a read position; the storage is kept; the passed part is
+  dropped only before the storage would grow and before a state is written, so states are
+  unchanged. Burnout 3's race, per frame: 10 reallocations and 20.6 MB moved before, none now.
+  No behaviour change. Commit `5849b06`. See `docs/re/web-log-003.md`; test
+  `tests/runtime/test_gif_path3.cpp`.
+- `dispatch: an idle call takes whole turns of a waiting loop off the time slice`:
+  `runtime/src/dispatch.cpp`, `runtime/include/ps2/system.hpp`, `runtime/src/system.cpp`,
+  `host/web.cpp`. `ps2::add_idle_call(function, return address, waiting register)` names a call a
+  game makes on every turn of a waiting loop. Once two turns in a row have cost the same cycles
+  the dispatcher subtracts whole turns from the slice and leaves the last one or two to run, so
+  the slice ends on the same cycle as with the loop spinning. `PS2_NO_IDLE=1` turns it off;
+  `ps2run` prints the number of turns skipped at exit. The web host now calls `register_hooks()`
+  as the native host does (a game registers its idle calls there), so the page must be built
+  with `PS2_HOOKS` to get them. No behaviour change for a game that registers nothing. Burnout 3:
+  identical cycles, primitives and audio; with the hold buffer change the page's emulation
+  thread does 23% less work in the race. Commit `a854891`. Same doc; test
+  `tests/runtime/test_dispatch_idle.cpp`.

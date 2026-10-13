@@ -180,4 +180,18 @@ const ps2::Hook kHooks[] = {
 
 }
 
-void register_hooks() { ps2::register_hooks(b3::kHooks, sizeof b3::kHooks / sizeof b3::kHooks[0]); }
+// What the runtime is told about this game at start-up: the decompiled functions (registered, not enabled),
+// and where the game waits.
+//
+// The wait: the loop at 0x001F24E0 spins until the game's DMA queue has caught up (two queue positions equal
+// and a busy byte clear; an interrupt handler moves them). On every turn it calls the function its global
+// pointer names, from the call that returns to 0x001F2518, with a0 = 1 while it still waits and 0 on its
+// last turn. In a race that pointer is 0x00228040, which stores a1 in a global if it is lower than what is
+// there; a1 does not change inside the loop. Nothing the loop waits for can happen before the next event,
+// so that call is registered as an idle call: the runtime measures a turn and takes whole turns off each
+// time slice, leaving the last one or two to run, and the run stays the same cycle for cycle. Measured
+// before: about 160,000 turns a frame, 70 to 80 percent of the EE's time (docs/re/web-log-003.md).
+void register_hooks() {
+    ps2::register_hooks(b3::kHooks, sizeof b3::kHooks / sizeof b3::kHooks[0]);
+    ps2::add_idle_call(0x00228040u, 0x001F2518u, 4);
+}

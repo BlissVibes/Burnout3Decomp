@@ -18,7 +18,7 @@ printf '%s\n' "$boot" > "$OUT/boot.txt"
 source "$EMSDK/emsdk_env.sh" > /dev/null 2>&1
 emcmake cmake -S "$FORK" -B "$OUT" -G Ninja -DCMAKE_BUILD_TYPE=Release \
   -DPS2_GENERATED="$FORK/generated/$NAME" -DPS2_WEB_ELF="$elf" -DPS2_WEB_BOOT_FILE="$OUT/boot.txt" \
-  -DPS2_WEB_SHELL="$REPO/web/shell.html" > /dev/null
+  -DPS2_WEB_SHELL="$REPO/web/shell.html" -DPS2_HOOKS="$REPO/src/hooks" > /dev/null
 ninja -C "$OUT" ps2web
 cp "$REPO"/web/*.js "$OUT"/ 2>/dev/null || true
 gzip -kf9 "$OUT/ps2web.wasm" "$OUT/ps2web.data" "$OUT/ps2web.js"
