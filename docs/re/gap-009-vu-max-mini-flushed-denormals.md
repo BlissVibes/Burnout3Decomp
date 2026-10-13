@@ -63,7 +63,7 @@ Outputs under `~/b3/out/gap008/`.
 
 ## Still wrong after both fixes
 
-A patch on the player's car, on the rear window and roof, shows blocks of saturated green, yellow and orange where a reflection should be. It is the only fault left in the two frames looked at and has not been investigated (candidate: the environment-map pass).
+A patch on the player's car, on the rear window and roof, shows blocks of saturated green, yellow and orange where a reflection should be. It was the only fault left in the two frames looked at; it is `docs/re/gap-010-vu-q-and-p-result-latency.md`.
 
 ## Status
 

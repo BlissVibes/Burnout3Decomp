@@ -101,4 +101,13 @@ so the fork lives outside the repo and is pinned here instead.
   +0. This is a behaviour change for every game; the JIT path has only been compiled natively
   so far and needs one browser run. State version stays 4. Commit `1334998`. See
   `docs/re/gap-009-vu-max-mini-flushed-denormals.md`.
+- `vu: Q and P results appear after their latency in the interpreters (cycle-scheduled programs)`:
+  `runtime/src/vu_micro.cpp`. In both VU interpreter loops the result of DIV, SQRT and RSQRT (Q)
+  and of the EFU operations (P) becomes visible a fixed number of instructions after the
+  instruction that started it (7, 7 and 13 for Q; 11 to 54 for P), at once on WAITQ/WAITP, at
+  program end, or when another operation of the same kind starts. Programs scheduled around the
+  latency (a read of the old Q or P inside the window) now get the old value, as on hardware.
+  Counted in instructions: pipeline stalls are not modelled. The WebAssembly VU JIT and
+  vurecomp still deliver Q and P at once. State version stays 4. Commit `82584e5`. See
+  `docs/re/gap-010-vu-q-and-p-result-latency.md`.
 
