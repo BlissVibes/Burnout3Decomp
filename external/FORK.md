@@ -190,3 +190,15 @@ so the fork lives outside the repo and is pinned here instead.
   function); old generated code keeps working. No cost measured with hooks off. Commit
   `b2c8a15`. See `docs/re/harness-log-003.md`; tests `tests/test_recomp_hook_check.py`,
   `tests/runtime/test_hooks.cpp`.
+- `vu: the fast C++ paths add as the VU adder does (one guard bit, truncated), not as the host rounds`:
+  `runtime/include/ps2/vu_ops.hpp`, `runtime/src/vu_micro.cpp`. ADD, SUB, MADD, MSUB and the forms
+  into ACC share one adder that keeps one guard bit and truncates; the helpers of the recompiled
+  VU1 programs (scalar and four-lane) and the fast interpreter used the host's sum. The host sum
+  is now corrected by at most one unit in the last place from its exact error term and matches
+  `fp::add`. Multiplication is still the host's. Behaviour change for every game. By Opus 2.
+  Commit `a765dc8`. See `docs/re/gap-013-vu-adder-host-rounding.md`; test
+  `tests/unit/test_vu_adder.cpp`.
+- `vu jit: the ADD family adds as the VU adder does; SUB, MADD, MSUB keep host rounding for now`:
+  `runtime/src/vu_jit.cpp`. The WebAssembly VU JIT emits the same correction for ADD, ADDi, ADDq,
+  ADDbc and their forms into ACC only: the whole rule left the VU thread no idle time in the race.
+  Costs 8 to 10 points of VU-thread time in Burnout 3's race. By Opus 2. Commit `f2f31d2`. Same doc.
