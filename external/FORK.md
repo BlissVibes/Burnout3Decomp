@@ -167,3 +167,12 @@ so the fork lives outside the repo and is pinned here instead.
   `state::kVersion` is 6; older files load, a playing voice going on from the block it had
   decoded ahead. Behaviour change for every game. Commit `1072cf9`. See
   `docs/re/audio-log-002.md`.
+- `vu: FMOR and FSOR OR the flags into the register (they had FCOR's all-ones test)`:
+  `runtime/src/vu_micro.cpp`, `runtime/src/vu_jit.cpp`, `recomp/vurecomp.cpp`. FMOR stores the
+  MAC flags ORed with `VI[is]` and FSOR the status flags ORed with the 12-bit immediate; all
+  three implementations answered 1 when the OR was all ones and 0 otherwise, which is FCOR's
+  rule. Burnout 3's segment-against-triangle test (a VU0 microprogram) gathers six flag words
+  with FMOR, so it accepted every hit and cars were thrown off the map. Behaviour change for
+  every game whose VU code uses either instruction; recorded VU1 programs that use them need
+  recompiling (Burnout 3's do not). State version unchanged. By Opus 2. Commit `76eb759`. See
+  `docs/re/gap-012-vu-fmor-fsor-wrong-meaning.md`; guard in `tests/test_vurecomp_flag_or.py`.

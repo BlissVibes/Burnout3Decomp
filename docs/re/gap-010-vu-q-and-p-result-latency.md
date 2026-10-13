@@ -10,21 +10,13 @@ With gaps 008 and 009 fixed the cars were drawn, but on the roof and rear window
 
 The reflection is a second texture pass over the car with a 256 by 256 environment map at GS block `0x2D60`, which the game renders every frame from three 128 by 128 views of the scene. Only the inscribed disc of that map is drawn. The memory under its top corners is also the depth buffer of the three views (`ZBUF` at `0x2D60`, `0x2E60` and `0x2F60`), so the top corners hold depth values, which look like coloured noise, and the bottom corners are black. That is harmless as long as the reflection coordinates stay inside the disc.
 
-They did not. Of 15,891 vertices drawn with the map in one frame, 12,056 had coordinates outside the disc, with values from -800 to 1e20. The coordinates are not computed by the program that draws the car. A separate VU1 program (around microprogram addresses `0x0B70` to `0x0D90`, one of the programs that kick nothing) computes them for four vertices at a time and stores them back into VU memory. It is scheduled to the cycle around the divider and the EFU:
+They did not. Of 15,891 vertices drawn with the map in one frame, 12,056 had coordinates outside the disc, with values from -800 to 1e20. The coordinates are not computed by the program that draws the car. A separate VU1 program (around microprogram addresses `0x0B70` to `0x0D90`, one of the programs that kick nothing) computes them for four vertices at a time and stores them back into VU memory. It is scheduled to the cycle around the divider and the EFU (the listing is not kept in this repository; microprogram addresses below):
 
-```
-0BC8:                                  ESQRT P, vf7w
-0BD0:                                  SQRT Q, vf7y
-0BF0: ADDq.x vf6, vf0, Q                               4 instructions after the SQRT: wants the previous Q
-0C08:                                  SQRT Q, vf7z
-0C10: ADDq.y vf6, vf0, Q                               1 instruction after: wants the Q of the SQRT at 0BD0
-0C20:                                  MFP.y vf13, P   11 after the ESQRT: wants the previous P
-0C28:                                  MFP.w vf6, P    12 after the ESQRT: wants its result
-0C30:                                  ERSQRT P, vf12w
-0C40:                                  RSQRT Q, vf2w, vf12z
-0C48: ADDAq.z ACC, vf0, Q                              1 after: wants the Q of the SQRT at 0C08
-0CC0:                                  MFP.w vf13, P   18 after the ERSQRT: wants its result
-```
+- It starts an ESQRT at `0x0BC8` and a SQRT at `0x0BD0`, and reads Q at `0x0BF0`, four instructions after that SQRT: it wants the previous Q.
+- It starts another SQRT at `0x0C08` and reads Q at `0x0C10`, one instruction later: it wants the result of the SQRT at `0x0BD0`.
+- It reads P at `0x0C20` and `0x0C28`, 11 and 12 instructions after the ESQRT: the first wants the previous P, the second the ESQRT's result.
+- It starts an ERSQRT at `0x0C30` and an RSQRT at `0x0C40`, and reads Q at `0x0C48`, one instruction after the RSQRT: it wants the result of the SQRT at `0x0C08`.
+- It reads P at `0x0CC0`, 18 instructions after the ERSQRT: it wants that result.
 
 On the VU, DIV and SQRT deliver Q seven instructions after they start and RSQRT thirteen; the EFU instructions deliver P after 11 to 54. Until then Q and P hold the previous result, and this program reads them in that window on purpose. The fork's interpreter wrote Q and P the moment the instruction executed, so each read above got the result of a later operation than the one intended, and square roots, reciprocal roots and unrelated vertices were mixed.
 
