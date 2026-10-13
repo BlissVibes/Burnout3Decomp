@@ -216,3 +216,29 @@ option for scratch float registers), and the out-of-domain inputs.
 
 Totals with the follow-up: 26,964 cases, 0 fail, 0 skip.
 
+## The race01 corpus, 2026-10-12
+
+A second snapshot corpus, taken during a race, for functions that read globals which only
+hold meaningful values there. It starts from the run 011 save-state
+(`~/b3/out/run011/pre-race.state`, frame 12300) with `--load-state`, `--frames 14100`,
+`--snapshot-every 150` and one press, `12600:cross:1500` (accelerate held from the first
+snapshot to the end). Renderer: WebGPU with `PS2_GPU_FALLBACK=1`, as for menu01; the load
+worked, so `PS2_GS=off` was not needed. 221 s, rc 0, `[iop] 0 faults`, no misses file.
+
+Eleven states, `s012600.state` to `s014100.state` every 150 frames, 46.3 MB each, 488 MB with
+the frames, in `~/b3/out/snaps/race01/` beside `CMD.txt` and `run.log`. The state at 12450
+(the race intro) was written and deleted. One PNG per snapshot frame is in
+`~/b3/out/snaps/race01/frames/`.
+
+The held accelerate does drive the car, so the physics state differs between snapshots:
+49 mph looking at the sky at 12600 (third of six); 70 mph on the town street with a
+"CRASHED!" banner at 12750; a crash replay at 13200 ("IMPACT TIME", a stunt tally and
+"87ft Skid"); first of six at 93 mph on a tree-lined road with a "NEAR MISS" award and a
+partly filled boost bar at 13650; fourth of six at 106 mph beside a barrier at 14100. Nobody
+steers. The picture has the faults described in `docs/re/boot-log-011.md` (garbage world
+textures, the car drawn only as its shadow); those do not matter for the corpus.
+
+Sanity check with two verified functions, same commands and case files as above with
+`--snapshots ~/b3/out/snaps/race01`: `lowest_set_bit_index: 473 pass, 0 fail, 0 skip` and
+`valuedb_hash_key: 385 pass, 0 fail, 0 skip`, both rc 0 (43 and 35 cases on eleven states).
+

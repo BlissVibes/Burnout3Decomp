@@ -1,6 +1,7 @@
 #include "ps2/hook.hpp"
 
 #include "ee/abi.hpp"
+#include "hooks/ai/compare_ints_cyclic_from_pivot.hpp"
 #include "hooks/audio/lowest_set_bit_index.hpp"
 #include "hooks/audio/path_extension_after_dot.hpp"
 #include "hooks/frontend/compare_wide_strings.hpp"
@@ -10,12 +11,21 @@
 #include "hooks/registry/find_key64_slot.hpp"
 #include "hooks/ring_buffers/ring_index_advance.hpp"
 #include "hooks/ring_buffers/ring_index_is_at_or_ahead.hpp"
+#include "hooks/score/boost_stats_as_ints.hpp"
+#include "hooks/score/event_stamp_within_window.hpp"
+#include "hooks/score/stamped_value_if_fresh.hpp"
+#include "hooks/util/arena_alloc_aligned.hpp"
+#include "hooks/valuedb/decode_id_base40.hpp"
 #include "hooks/valuedb/valuedb_hash_key.hpp"
+#include "hooks/vehicle/recent_sample_ring_read.hpp"
+#include "hooks/vehicle/slot_pool_register_entry.hpp"
 
 // Every decompiled function that can replace a recompiled one, and the shims that move its
 // arguments and results between the EE registers and its C++ signature. The register contract of
-// each shim is the "Shim note" of the function in docs/re/decomp-log-001.md. The table is
-// explicit: a static library drops objects that are reached only through static initialisers.
+// each shim is the "Shim note" of the function in docs/re/decomp-log-001.md or decomp-log-002.md.
+// Functions whose signature is already in guest terms (guest_ptr, f32, integers) need no shim:
+// ee::abi::hook<&fn> reads and writes the registers. The table is explicit: a static library
+// drops objects that are reached only through static initialisers.
 namespace b3 {
 
 void hook_pack_fixed16(ps2::Cpu &c);
@@ -110,15 +120,57 @@ void hook_build_texture_uv_rect(ps2::Cpu &c) {
         c.fcr31 |= load_screen_sprites::kDivideByZeroFlags;
 }
 
+// 0x00156170. a0 = owner, f12 = window. The original's two compares leave the FPU condition bit
+// set when the stamp is negative, and otherwise equal to the answer.
+void hook_event_stamp_within_window(ps2::Cpu &c) {
+    const ee::guest_ptr<score::EventStampOwner> owner{arg<std::uint32_t>(c, 0)};
+    const std::int32_t within = score::event_stamp_within_window(owner, ee::abi::farg(c, 0));
+    const std::uint32_t state = ps2::ld32(owner.address + score::kEventStateBlockOffset);
+    const ee::f32 stamp = ee::f32::from_bits(ps2::ld32(state + score::kEventStampOffset));
+    set_fpu_condition(c, stamp < ee::f32::from_bits(0) || within != 0);
+    ee::abi::ret_sx32(c, static_cast<std::uint32_t>(within));
+}
+
+// 0x001553A0. a0 = owner, f12 = window. The condition bit ends set when the slot is empty (the
+// equality test with -1.0f) or stale (the last ordered test), clear when the word is returned.
+void hook_stamped_value_if_fresh(ps2::Cpu &c) {
+    const ee::guest_ptr<score::StampedSlotOwner> owner{arg<std::uint32_t>(c, 0)};
+    const ee::f32 window = ee::abi::farg(c, 0);
+    const std::uint32_t value = score::stamped_value_if_fresh(owner, window);
+    const ee::f32 stamp = ee::f32::from_bits(ps2::ld32(owner.address + score::kStampTimeOffset));
+    const bool empty = stamp == score::kNeverStamped;
+    set_fpu_condition(c, empty || stamp + window < ee::f32::from_bits(ps2::ld32(owner.address + score::kClockOffset)));
+    ee::abi::ret_sx32(c, value);
+}
+
+// 0x0021AEF0. a0 = the id string; the key comes back as all 64 bits of v0.
+void hook_decode_id_base40(ps2::Cpu &c) {
+    ee::abi::ret64(c, valuedb::decode_id_base40(host<const char>(arg<std::uint32_t>(c, 0))));
+}
+
+// Overloaded functions: the guest-pointer forms are the ones the game calls.
+constexpr auto kCompareIntsCyclic =
+    static_cast<std::int32_t (*)(ee::guest_ptr<std::int32_t>, ee::guest_ptr<std::int32_t>)>(&ai::compare_ints_cyclic_from_pivot);
+constexpr auto kArenaAllocAligned =
+    static_cast<std::uint32_t (*)(ee::guest_ptr<util::ArenaDesc>, std::uint32_t)>(&util::arena_alloc_aligned);
+
 const ps2::Hook kHooks[] = {
     {0x00145E70u, "ring_index_advance", &hook_ring_index_advance},
+    {0x0014E7E0u, "boost_stats_as_ints", &ee::abi::hook<&score::boost_stats_as_ints>},
+    {0x001553A0u, "stamped_value_if_fresh", &hook_stamped_value_if_fresh},
+    {0x00156170u, "event_stamp_within_window", &hook_event_stamp_within_window},
+    {0x0015A750u, "recent_sample_ring_read", &ee::abi::hook<&vehicle::recent_sample_ring_read>},
     {0x001478C0u, "ring_index_is_at_or_ahead", &hook_ring_index_is_at_or_ahead},
     {0x001B9820u, "sap_compare_x", &hook_sap_compare_x},
     {0x001C6F30u, "select_gear_under_rev_limit", &hook_select_gear_under_rev_limit},
+    {0x0021AEF0u, "decode_id_base40", &hook_decode_id_base40},
     {0x0021BFA0u, "valuedb_hash_key", &hook_valuedb_hash_key},
     {0x002518E0u, "find_key64_slot", &hook_find_key64_slot},
+    {0x00254970u, "slot_pool_register_entry", &ee::abi::hook<&vehicle::slot_pool_register_entry>},
+    {0x0026CBE0u, "compare_ints_cyclic_from_pivot", &ee::abi::hook<kCompareIntsCyclic>},
     {0x002934D0u, "path_extension_after_dot", &hook_path_extension_after_dot},
     {0x00299550u, "lowest_set_bit_index", &ee::abi::hook<&audio::lowest_set_bit_index>},
+    {0x002F9CA0u, "arena_alloc_aligned", &ee::abi::hook<kArenaAllocAligned>},
     {0x0035EFA0u, "compare_wide_strings", &hook_compare_wide_strings},
     {0x003713A0u, "build_texture_uv_rect", &hook_build_texture_uv_rect},
     {0x00389700u, "pack_fixed16", &hook_pack_fixed16},

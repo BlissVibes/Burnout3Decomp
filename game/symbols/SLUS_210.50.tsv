@@ -33,6 +33,10 @@ address	name	kind	size	type	owner	evidence	status	note
 0x00145E70	ring_index_advance	func	0x74	u16 ring_index_advance(const RingDesc *desc, u16 index, s16 delta)	game	CX	verified	steps a 16-bit ring index; wrap = (i+d+cap)%cap truncating, clamp = [0,cap-1]; delta 0 returns a1 unchanged; docs/re/decomp-log-001.md; oracle: menu01 corpus, fork c31e314, docs/re/harness-log-002.md
 0x001478C0	ring_index_is_at_or_ahead	func	0x90	s32 ring_index_is_at_or_ahead(const RingDesc *desc, u32 idx_a, u32 idx_b)	game	CX	verified	header via desc+4 (count u16 +12, wrap u8 +14); non-wrap d>=0, wrap d in [0,half) or d<-half; docs/re/decomp-log-001.md; oracle: menu01 corpus, fork c31e314, docs/re/harness-log-002.md
 0x0014E670	boost_bar_registrar	func	?		game	SXR	recomp	reB3 0x0017A0F0; 5 calls to valuedb_register with "Boost Bar" and Score.cfg; confidence M
+0x0014E7E0	boost_stats_as_ints	func	0x48	void boost_stats_as_ints(void *object, s32 *out_first, s32 *out_second, s32 *out_third)	game	CX	verified	three floats of the record at *(object+1380), fields +936 +932 +928, converted with cvt.w.s and stored through three out pointers; every caller passes object 0x006481A0; docs/re/decomp-log-002.md; oracle: menu01 and race01 corpora, fork 5b782b3, docs/re/decomp-log-002.md
+0x001553A0	stamped_value_if_fresh	func	0x50	u32 stamped_value_if_fresh(const StampedSlotOwner *owner, f32 window)	game	CX	verified	word at +1516 while stamp(+1520) + window >= clock(+12), 0 when the stamp is -1.0f or stale; callers 0x0014435C 0x001D1B18 0x001D1BB0; docs/re/decomp-log-002.md; oracle: menu01 and race01 corpora, fork 5b782b3, docs/re/decomp-log-002.md
+0x00156170	event_stamp_within_window	func	0x44	s32 event_stamp_within_window(const EventStampOwner *owner, f32 window)	game	CX	verified	state = *(owner+200); 0 when stamp(+5512) < 0, else clock(+4300) <= stamp + window; siblings 0x00156080 0x001560D0 0x00156120 differ only in the stamp offset; docs/re/decomp-log-002.md; oracle: menu01 and race01 corpora, fork 5b782b3, docs/re/decomp-log-002.md
+0x0015A750	recent_sample_ring_read	func	0x80	f32 recent_sample_ring_read(const SampleRing *ring, s32 seq)	game	CX	verified	float at slot seq&7 of the eight-slot ring at +744 when seq is one of the seven before next = *(+732) + *(+20) * (*(+736) + 1), else -1.0f; callers 0x001A2B08 0x001A2B60 0x001A2C48; docs/re/decomp-log-002.md; oracle: menu01 and race01 corpora, fork 5b782b3, docs/re/decomp-log-002.md
 0x0015D0A0	score_registrar	func	?		game	SR	recomp	not in the verifier sample; 82 references to Score.cfg (reB3 says 79 registrations); "Score/Burnout Points" referenced 31 times
 0x00161310	fn_00161310	func	?		game	X	recomp	called by the three giants with static_pool_manager (unregister/unlink/return to pool, guess)
 0x001613B0	fn_001613B0	func	?		game	X	recomp	called by the three giants with static_pool_manager
@@ -94,6 +98,7 @@ address	name	kind	size	type	owner	evidence	status	note
 0x001F19C0	rw_path3_mask_wait	label	?		rw	X	recomp	waits for GIF_STAT M3P after MSKPATH3; docs/re/gap-003
 0x001F1A28	rw_gif_fifo_wait	label	?		rw	X	recomp	waits for GIF_STAT FQC to become non-zero; docs/re/gap-004
 0x00216E40	fn_00216E40	func	?		game	X	recomp	second harness target: reads floats at a0+220 and a0+224, f12, f13; returns f0
+0x0021AEF0	decode_id_base40	func	0x100	u64 decode_id_base40(const char *text)	game	CX	verified	first twelve characters of an id as a 64-bit base-40 key, most significant first; _ 39, letters 13..38 (case folds), digits 3..12, / 2, - 1, else 0; 81 call sites; docs/re/decomp-log-002.md; oracle: menu01 and race01 corpora, fork 5b782b3, docs/re/decomp-log-002.md
 0x0021B9B0	valuedb_register_c	func	?		game	SXR	recomp	registrar variant; calls valuedb_hash_key at 0x0021BA38; 37 call sites
 0x0021BB60	valuedb_register	func	0x220		game	SXR	recomp	reB3 0x001AEE20; a0 db+0x10, a1 float field, a2 name, a3 group, t0 cfg path, t1 type, t2 flags, f12 min, f13 max; 613 call sites; key composition inlined at 0x0021BBB0
 0x0021BD80	valuedb_register_b	func	?		game	SXR	recomp	registrar variant; calls valuedb_hash_key at 0x0021BE1C; 55 call sites
@@ -106,7 +111,9 @@ address	name	kind	size	type	owner	evidence	status	note
 0x00252C20	vehicle_physics_registrar	func	?		game	SXR	recomp	reB3 0x00132D10; exactly 64 calls to valuedb_register; "Physics/Drift" referenced 18 times
 0x002540A0	vehicle_physics_setup	func	?		game	R	recomp	not in the verifier sample; caller of vehicle_apply_config
 0x002540E0	vehicle_physics_defaults	func	?		game	R	recomp	not in the verifier sample
+0x00254970	slot_pool_register_entry	func	0xDC	void slot_pool_register_entry(VehicleRenderEntry *entry)	game	CX	verified	appends an entry to the 16-byte slot pool at 0x01D9D010 (count 0x004E29D0, running total 0x004E29D4 +22 per sub-object, flags 0x004E29E0 0x004E29E4); only caller 0x00261F18; docs/re/decomp-log-002.md; oracle: menu01 and race01 corpora, fork 5b782b3, docs/re/decomp-log-002.md
 0x00268970	vehicle_frame	func	?		game	XR	recomp	reB3 0x0011BE50; calls vehicle_substep_run twice and vehicle_crashed_step once; no direct callers (vtable); confidence M
+0x0026CBE0	compare_ints_cyclic_from_pivot	func	0x8C	s32 compare_ints_cyclic_from_pivot(const s32 *a, const s32 *b)	game	CX	verified	qsort comparator: the pivot word at 0x004E19F8 first, then values above it, then values below it, ascending within each; two pivot values give -1 either way; only caller 0x0026CAB0; docs/re/decomp-log-002.md; oracle: menu01 and race01 corpora, fork 5b782b3, docs/re/decomp-log-002.md
 0x00271A80	ai_params_registrar	func	?		game	SXR	recomp	reB3 0x0016AFD0; 69 + 4 = 73 registrations; called only by loader_dispatch with a0 = ai_params
 0x0028ED30	sound_skids_registrar	func	?		game	R	recomp	not in the verifier sample
 0x002934D0	path_extension_after_dot	func	0x58	const char *path_extension_after_dot(const char *s)	game	CX	verified	pointer after the last '.', start pointer if none; index 0 never tested; callers 0x002A5414 0x002AAF68; docs/re/decomp-log-001.md; oracle: menu01 corpus, fork c31e314, docs/re/harness-log-002.md
@@ -116,6 +123,7 @@ address	name	kind	size	type	owner	evidence	status	note
 0x002ED690	sound_surface_registrar	func	?		game	R	recomp	not in the verifier sample
 0x002F7E70	camera_registrar_b	func	?		game	R	recomp	not in the verifier sample; sibling of camera_follow_registrar
 0x002F8870	camera_follow_registrar	func	?		game	R	recomp	not in the verifier sample
+0x002F9CA0	arena_alloc_aligned	func	0x50	u32 arena_alloc_aligned(ArenaDesc *arena, u32 size)	game	CX	verified	bump allocation: start = (cursor(+16) + align(+20) - 1) & ~(align - 1), cursor advances before the limit(+12) test, +24 = start or 0; eleven call sites; docs/re/decomp-log-002.md; oracle: menu01 and race01 corpora, fork 5b782b3, docs/re/decomp-log-002.md
 0x003093E0	btv_parse	func	?		game	S	recomp	.btv parser named in the boundary table; reported
 0x00334010	fn_00334010	func	?		game	X	recomp	caller of rigid_body_integrate; reported
 0x00344310	rumble_registrar	func	?		game	S	recomp	rumble and boost-jolt ValueDB registrar; reported
