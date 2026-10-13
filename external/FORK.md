@@ -176,3 +176,17 @@ so the fork lives outside the repo and is pinned here instead.
   every game whose VU code uses either instruction; recorded VU1 programs that use them need
   recompiling (Burnout 3's do not). State version unchanged. By Opus 2. Commit `76eb759`. See
   `docs/re/gap-012-vu-fmor-fsor-wrong-meaning.md`; guard in `tests/test_vurecomp_flag_or.py`.
+- `recomp, hooks: generated code offers every function entry to the hooks; shadow mode`:
+  `recomp/codegen.cpp`, `runtime/src/hooks.cpp`, `dispatch.cpp`, `system.cpp`,
+  `runtime/include/ps2/generated.hpp`, `hook.hpp`, `system.hpp`, `host/main.cpp`. Part 3b of the
+  function harness. The entry switch of a generated unit calls `enter()` for an address that is
+  a function when `g_hooks` is set, so an enabled hook replaces the function for direct callers
+  too and `--trace-calls` lists directly called functions; `dispatch()` calls `offer()` and the
+  unit's check does not count that entry twice. `ps2run` prints a `[hook]` line per enabled hook
+  at exit. `--shadow N`: hooks do not serve; every Nth call of each hook runs the recompiled
+  function and then the hook on a copy of the call and compares registers and memory, keeping
+  the recompiled outcome (`PS2_SHADOW_LIVE=hook` keeps the hook's instead, with the recompiled
+  function's cycles). Generated code must be regenerated to get the check (one line per
+  function); old generated code keeps working. No cost measured with hooks off. Commit
+  `b2c8a15`. See `docs/re/harness-log-003.md`; tests `tests/test_recomp_hook_check.py`,
+  `tests/runtime/test_hooks.cpp`.
