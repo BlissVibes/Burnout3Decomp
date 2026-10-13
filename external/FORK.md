@@ -156,3 +156,14 @@ so the fork lives outside the repo and is pinned here instead.
   saved-state layout are unchanged. This changes the tone of every voice in every game (a
   steady sample is 0.03 dB lower, the top octave slightly softer). Commit `e1ebb50`. See
   `docs/re/audio-log-002.md`.
+- `spu2: a block's end flag acts when the block has been played; state files version 6`:
+  `runtime/src/iop/spu2.cpp`, `runtime/include/ps2/state.hpp`. A voice decodes a block when it
+  reaches it (it was one block ahead) and keeps the block before it for the interpolation, which
+  now takes the sample at the read position and the three before it, as on hardware. When the
+  read position leaves a block, its end flag acts: ENDX, the jump to the loop address, and for a
+  sound without a loop the release and cut. Before, that happened a block before the end block
+  was played, so one-shot sounds lost their last 56 samples and two-block ones were silent.
+  The voice record has the same layout with another meaning (`Voice::buffer`, `position`), so
+  `state::kVersion` is 6; older files load, a playing voice going on from the block it had
+  decoded ahead. Behaviour change for every game. Commit `1072cf9`. See
+  `docs/re/audio-log-002.md`.

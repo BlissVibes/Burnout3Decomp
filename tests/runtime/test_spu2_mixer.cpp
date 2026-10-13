@@ -6,6 +6,8 @@
 
 #include "spu2_fixture.hpp"
 
+#include "ps2/state.hpp"
+
 #include <algorithm>
 
 namespace {
@@ -196,6 +198,76 @@ void a_single_sample_comes_out_as_the_four_point_bell() {
     CHECK(g_out[(peak + 24) * 2] > 0);
 }
 
+// A block of 28 equal samples (nibble * 0x1000) with the given flags: 1 end, 2 repeat, 4 loop start.
+void block(std::uint32_t at, unsigned flags, unsigned nibble) {
+    spu2::ram()[at] = static_cast<std::uint16_t>(flags << 8);
+    for (int i = 1; i < 8; ++i) spu2::ram()[at + i] = static_cast<std::uint16_t>(nibble * 0x1111u);
+}
+
+// A steady sample after the interpolation, at a whole read position (weights 0x12C7, 0x59B3, 0x1307 and -1 of 0x8000).
+int steady(int sample) { return (0x12C7 * sample >> 15) + (0x59B3 * sample >> 15) + (0x1307 * sample >> 15) + (-sample >> 15); }
+
+void a_voice_starts_from_silence_behind_its_first_sample() {
+    fresh();
+    start_voice(1, 0, 0x5000, 0x3FFF, 0x3FFF);
+    run(1);
+    // The first sample is the newest of the four, with silence before it; the envelope rises over the same samples.
+    const int attack[3] = {0x3800, 0x7000, 0x7FFF};
+    const int interpolated[3] = {-16384 >> 15, (0x1307 * 16384 >> 15) + (-16384 >> 15), (0x59B3 * 16384 >> 15) + (0x1307 * 16384 >> 15) + (-16384 >> 15)};
+    for (int i = 0; i < 3; ++i) CHECK(about(g_out[i * 2], (((interpolated[i] * attack[i] >> 15) * 0x7FFE >> 15) * 0x7FFE) >> 15));
+    CHECK(about(g_out[3 * 2], kCore1Voice));
+}
+
+void a_sound_without_a_loop_plays_to_the_end_of_its_last_block() {
+    fresh();
+    start_voice(1, 0, 0x5000, 0x3FFF, 0x3FFF);
+    block(0x5000, 4, 4);
+    block(0x5008, 1, 4);                       // the end, no repeat
+    run(1);
+    CHECK_EQ(reg(1, 0x340) & 1u, 0u);          // 32 of its 56 samples played: not at the end yet
+    CHECK(about(left(), kCore1Voice));
+    run(3);
+    CHECK_EQ(reg(1, 0x340) & 1u, 1u);
+    int sounding = 0, last = 0;
+    for (int i = 0; i < 128; ++i)
+        if (std::abs(g_out[i * 2]) > 100) {
+            ++sounding;
+            last = i;
+        }
+    CHECK_EQ(last, 55);
+    CHECK_EQ(sounding, 55);                    // every sample but the first, which has only silence behind it
+    CHECK(about(g_out[55 * 2], kCore1Voice));  // at full level to the last sample, then cut
+}
+
+void a_loop_of_two_blocks_plays_them_in_turn() {
+    fresh();
+    start_voice(1, 0, 0x5000, 0x3FFF, 0x3FFF);
+    block(0x5000, 4, 2);
+    block(0x5008, 3, 6);                       // the end, repeat
+    run(1);
+    CHECK_EQ(reg(1, 0x1C0 + 10), 0x500Au);     // NAX: four samples into the second block
+    run(7);
+    for (int turn = 0; turn < 2; ++turn) {
+        CHECK(about(g_out[(turn * 56 + 14) * 2], through(steady(0x2000))));
+        CHECK(about(g_out[(turn * 56 + 42) * 2], through(steady(0x6000))));
+    }
+    CHECK_EQ(reg(1, 0x340) & 1u, 1u);
+}
+
+void a_playing_voice_in_a_state_of_an_older_version_keeps_playing() {
+    fresh();
+    start_voice(1, 0, 0x5000, 0x3FFF, 0x3FFF);
+    run(4);
+    ps2::state::Writer old;
+    old.version = 5;
+    spu2::state(old);
+    ps2::state::Reader reader(old.out.data(), old.out.size());
+    reader.version = 5;
+    spu2::state(reader);
+    run(4);
+    CHECK(about(left(), kCore1Voice));
+}
+
 void reading_the_input_area_raises_the_address_interrupt() {
     fresh();
     reg(1, kIrqa, 0);
@@ -270,6 +342,10 @@ int main() {
     core_0_reaches_the_output_through_core_1s_external_input();
     a_steady_sample_keeps_its_level_at_every_interpolation_phase();
     a_single_sample_comes_out_as_the_four_point_bell();
+    a_voice_starts_from_silence_behind_its_first_sample();
+    a_sound_without_a_loop_plays_to_the_end_of_its_last_block();
+    a_loop_of_two_blocks_plays_them_in_turn();
+    a_playing_voice_in_a_state_of_an_older_version_keeps_playing();
     a_volume_sweep_runs_while_the_voice_is_stopped();
     a_sweep_keeps_its_pace_through_a_key_on();
     reading_the_input_area_raises_the_address_interrupt();

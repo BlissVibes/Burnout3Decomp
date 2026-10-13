@@ -66,8 +66,20 @@ Effect, as the table predicts: a steady sample comes out 0.03 dB lower, and the 
 
 A cold boot along the menu route to frame 14100 reaches the race with 0 IOP faults, and every section before the race is within 0.1 dB of the recording made before the change (EA logo -29.3 / -28.3 against -29.2 / -28.2 dBFS, intro -22.1 / -22.7 against -22.0 / -22.6, title -18.8 / -19.6 against -18.8 / -19.5, training video -21.6 / -21.6 against -21.6 / -21.5).
 
-One departure from the hardware: the four samples are taken from the read position onwards (the block after is already decoded) and not from the three before it, so a voice sounds two samples earlier than on a console. That keeps the voice record, and with it the saved-state layout, as it was.
+At that commit the four samples were taken from the read position onwards (the block after was already decoded) and not from the three before it, so a voice sounded two samples early. The next section removes that.
 
 Tests (`tests/runtime/test_spu2_mixer.cpp`, now 14 tests and 67 checks): a steady sample keeps the level the table gives at every index, and a single sample comes out as the bell the table describes (its centre weight `0x59B3` and the weights one sample either side, `0x1307` and `0x12C7`), wider than a straight line would make it. The expected levels of the other tests moved by the 0.03 dB.
 
-Seen while doing this and not changed: a voice whose data ends without a loop is silenced when its end block is decoded, which is one block before that block is played, so the last 28 to 56 samples of a one-shot sound are cut. On hardware the end takes effect when the block has been played.
+Seen while doing this: a voice whose data ends without a loop was silenced when its end block was decoded, a block before that block was played. Fixed in the next section.
+
+## Sounds without a loop were cut short (fork commit `1072cf9`)
+
+The mixer decoded one block ahead of the one being played and applied a block's end flag when it decoded it. For a sound that ends without a loop (end flag set, repeat flag clear) that meant: silence, and the ENDX bit, from the moment the block before the end block started to play. Such a sound lost its last two blocks, 56 samples; one of only two blocks made no sound at all (the new test showed that). On hardware a block's end flag acts when the block has been played to its last sample.
+
+Now a block is decoded when the voice reaches it, into the second half of the voice's buffer, with the block before it kept in the first half. The interpolation takes the sample at the read position and the three before it, as the hardware does, so a voice starts from silence behind its first sample and is no longer two samples early. When the read position leaves a block, that block's end flag acts: ENDX, the jump to the loop address (read at that moment, not a block earlier), and for a sound without a loop the release and the cut to silence. The address IRQ for a block fires when the voice starts reading it, as before.
+
+The voice record keeps its layout but its buffer and read position mean something else, so state files are version 6. Older files load: a playing voice in one of them goes on from the start of the block it had decoded ahead, a jump of at most one block once, at load.
+
+What it changes in the game: in the 30 seconds of race from the pre-race state the level per second is the same to 0.1 dB as before the change, and a cold boot to frame 14100 has every section before the race within 0.1 dB, with the stream voices (title, menu and video sound, which loop over two buffers and depend on the block addresses and the address IRQ) playing as before and 0 IOP faults. The difference is at the ends of one-shot effects, a millisecond or two each, which these measurements do not resolve.
+
+Tests (`tests/runtime/test_spu2_mixer.cpp`, now 18 tests and 84 checks): a voice starts from silence behind its first sample (the first four output samples); a sound of two blocks without a loop sounds for all of its samples, at full level to the last, with ENDX clear at 32 samples and set once it has ended; a two-block loop plays its blocks in turn and reports the block being read; a playing voice in a state marked as an older version keeps playing. Eight of the checks failed before the change. The function harness still runs on the version 4 snapshot corpora (1,166 and 312 cases, 0 fail), and a snapshot written by this build is version 6 and loads.
