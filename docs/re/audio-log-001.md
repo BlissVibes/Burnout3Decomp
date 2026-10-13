@@ -49,6 +49,8 @@ PCSX2's mixer (`pcsx2/SPU2/Mixer.cpp` and `ReadInput.cpp`, read today, knowledge
 
 Not established: how much quieter the race would be with the routing right (the distorted signal's level is the module's), and whether the remaining mix would still clip.
 
+Fixed later the same day as gap 011: `docs/re/gap-011-spu2-mix-switches-and-input-area.md`. With the routing right, plain driving is 5 dB quieter and does not clip; a crash still does, in core 1's own voice sum.
+
 ### Before the race
 
 - The intro, title and menu music and the training video's sound are two stream voices (core 1, voices 18/19 or 16/17, hard left and right, pitch `0x0AAA`, 32 kHz) looping over two 16 KB buffers that RWA refills. All blocks carry the loop flag; no end-of-data or stale-buffer symptom was seen.

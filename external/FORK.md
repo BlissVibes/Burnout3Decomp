@@ -117,4 +117,17 @@ so the fork lives outside the repo and is pinned here instead.
   back to the interpreter was rejected: 27 of 61 VU1 programs seen in a race read early. Costs
   1 to 4 points of VU-thread idle time in the race, no frame rate. Native output is unchanged
   (the JIT is not used natively). Commit `547315b`. See `docs/re/web-log-001.md`.
-
+- `spu2: mix switches, effect-send write-back, input area played from RAM, core 0 into core 1`:
+  `runtime/src/iop/spu2.cpp`. The mixer now honours the per-voice switches VMIXL/VMIXR (dry) and
+  VMIXEL/VMIXER (effects), writes the effect-send voice mixes to their write-back areas (they were
+  silence), plays each core's sound-data input from its input area in SPU2 RAM at the output
+  position whoever wrote it (auto-DMA now fills that ring a half at a time instead of a private
+  queue), applies MMIX to voices, input and external input, and sends core 0's output through
+  core 1's external-input volume (AVOL) instead of adding it to the output directly. Reading the
+  input area tests the address IRQ. Volume sweeps step every sample whether the voice plays or
+  not. After reset the switches read all-on (MMIX `0xFFCF`), so software that never writes them
+  sounds as before. Reverb itself is still not modelled: nothing returns from the effects mix.
+  `PS2_TRACE_SPU2` also logs each DMA transfer (core, direction, address, size, output position).
+  This is a behaviour change for every game that uses the switches. The saved-state layout is
+  unchanged (version stays 4); `Core::input` and `input_read` stay in it unused. Commit `b9afd4a`. See
+  `docs/re/gap-011-spu2-mix-switches-and-input-area.md`; tests in `tests/runtime/test_spu2_mixer.cpp`.
