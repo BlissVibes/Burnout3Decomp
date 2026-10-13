@@ -74,6 +74,12 @@ The comparison (the recompiled outcome stays):
 
 Do those leftovers matter to the game? The experiment runs answer it: with `PS2_SHADOW_LIVE=hook` and every call compared, so that after each call the registers and memory are exactly what the hook left, for eleven of the twelve functions in three runs (all but `sap_compare_x`): 74,088 calls, the hook's outcome left in place after all but 112 of them (those with events inside). The three runs are identical to the run without hooks in cycles and primitives. The leftovers do not change the course of the game in this stretch, and the different course of a run where hooks serve the calls comes from the missing cycles alone.
 
+## The same on the corrected race
+
+After gap 012 the race from the same state is a different and heavier one (72,745,908 primitives against 54,863,080). Shadow mode on it, same groups (`~/b3/out/harness06/`; `sap_compare_x` not rerun): both runs end at 69,308,449,691 cycles and 72,745,908 primitives, the figures of the run without hooks that recorded the race02 corpus. Eleven functions were called, 100,466 calls, 27,615 of them compared: no difference in result, memory or kept registers. `event_stamp_within_window` and `slot_pool_register_entry` are called about 41,500 times each here (21,711 and 34,464 before). The same seven functions are not called.
+
+After that the shared generated code (`generated/burnout3`) was regenerated with the check and the main native build and the browser page rebuilt from it (`ps2web.wasm` 24,845,564 bytes, 150 KB more). The page has not been run since; what the check costs in WebAssembly has not been measured.
+
 ## Tests
 
 - `tests/test_recomp_hook_check.py` runs `eerecomp` on a made-up three-function program (one of them a loop whose head is its first instruction) and reads the generated C++: the three function arms have the check, the arms of return addresses do not, and the loop branch goes to the label past it. Three tests, failing before the change; needs `B3_EERECOMP`, skipped without it.
@@ -86,7 +92,6 @@ Do those leftovers matter to the game? The experiment runs answer it: with `PS2_
 - 38 calls were not compared because events ran inside them (112 in the experiment runs).
 - A same-unit `j` to a function is not offered to the hooks.
 - Hooks use no emulated time. A per-hook cycle count would keep a hooked run close to an unhooked one; nothing needs it yet.
-- The shared generated code (`generated/burnout3`, used by the main build, the web build and Opus 2's worktree build) is still the old one. Switching it is a regeneration and one full rebuild for each build folder.
 - Hooks are not enabled in the browser page.
 - `--snapshot-on-entry` (Part 5 of the spec) is still not wired to a command-line option.
 - All of this was measured on the race as it was before gap 012.
