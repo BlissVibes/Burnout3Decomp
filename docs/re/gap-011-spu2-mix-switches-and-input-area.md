@@ -51,7 +51,7 @@ In the fork, `runtime/src/iop/spu2.cpp`:
 
 The saved-state layout is unchanged: the switches were already kept in the register array, and the queue's fields stay in the record unused. States saved before the fix load (the race recordings below start from one).
 
-Reverb is still not modelled. The effects mix is now formed and written back, but nothing returns from it into the output. In the 20 seconds measured, nothing was sent to core 1's effects (its effect-send mix was silent), so no reverb was missed there.
+Reverb was still not modelled at this commit: the effects mix is formed and written back, but nothing returned from it into the output. It was added next; see `docs/re/audio-log-002.md`, which also corrects what this note first said here: the voices' effect-send mix on core 1 was silent in the 20 seconds measured, but core 1's `MMIX` sends its input, the distorted engine, to the reverb all through the race.
 
 ## Verification
 
@@ -92,10 +92,57 @@ The main menu (frames 3300 to 4400) is left out of the table on purpose. Its lev
 
 The module ran its cycle throughout: in 500 frames 685 reads at each half and 1,369 writes, one per 256 samples once it had started, with no IOP fault.
 
+## Browser
+
+Checked by Opus 2 on 2026-10-13 in Chrome, by the method of the Browser section of `docs/re/audio-log-001.md`: the page's own audio worklet replaced over the debugging port by a copy that also records what it outputs, a faked standard gamepad, output muted, a separate browser profile. Two pages were run one after the other on the same machine: the page built at 23:31 on 2026-10-12 from the fork's main checkout with the mixer change (`ps2web.wasm` 24,681,285 bytes; built before the change was committed, so it is the change as reviewed, not a build of the commit), and a baseline built from fork 547315b without it (`ps2web.wasm` 24,680,356 bytes, the size of the page measured in `audio-log-001.md`). Captures, logs and scripts are under `~/b3/out/audio02/web/` (`fixed/` and `base/`).
+
+**The browser shows the same change as the native build. Plain driving no longer clips and the engine is no longer split hard left and right. Speed, underruns and the audio delay did not move. The title, menu and training-video audio is unchanged.**
+
+Both pages booted, reached the race and ran to frame 14100 with no JavaScript error and the status line at "Running".
+
+The race, browser against native, same frame windows (native after: `race-fixed.wav`, from the pre-race state; native before: `~/b3/out/audio01/full.wav`):
+
+| Frames | Build | Where | RMS dBFS L / R | Samples at full scale | Left/right correlation |
+|---|---|---|---|---|---|
+| 12660 to 13020, driving | before | native | -8.9 / -8.6 | 1.02% | -0.05 |
+| | before | browser | -8.3 / -8.1 | 1.50% | 0.11 |
+| | after | native | -13.8 / -14.2 | 0 | 0.90 |
+| | after | browser | -14.1 / -14.1 | 29 samples | 0.99 |
+| 13020 to 13200, first crash | before | browser | -7.8 / -8.6 | 2.36% | 0.63 |
+| | after | native | -9.1 / -9.1 | 1.32% | 0.88 |
+| | after | browser | -9.4 / -9.1 | 1.43% | 0.89 |
+| 13200 to 14100 | before | browser | -9.0 / -9.1 | 0.86% | 0.22 |
+| | after | native | -12.2 / -11.7 | 0.21% | 0.82 |
+| | after | browser | -13.2 / -12.6 | 0.18% | 0.92 |
+
+The browser and native figures are from different runs of a race that is not repeatable (other traffic, other song), so they agree to about 1 dB and not sample for sample; the cold-boot native recording (`full-fixed.wav`) gives -11.6 / -11.7 dBFS and 12 samples at full scale for the same driving window. The crash still clips in the browser as it does natively (the first open point below). The constant offset on the right channel that the old mix had while driving (a mean of -108 in the browser, -86 natively) is gone (-28).
+
+Speed and underruns, both pages measured the same way in the same session:
+
+| | before | after |
+|---|---|---|
+| Frame rate in the race (frames 12650 to 14100), mean / lowest sample | 59.5 / 55.2 | 59.6 / 55.2 |
+| Emulation thread idle, driving 12650 to 13050 | 12.6% | 12.1% |
+| Emulation thread idle, crash 13050 to 13400 | 28.2% | 27.7% |
+| Emulation thread idle, driving 13400 to 14100 | 12.6% | 11.9% |
+| VU thread idle in the race | 37.3% | 36.3% |
+| Samples output with the queue empty | 8,320 (173 ms) in 105 quanta | 7,296 (152 ms) in 89 quanta |
+| Where | frames 12723 to 12884 | frames 12746 to 12886 |
+| Queue depth in the race, mean | 63.4 ms | 63.9 ms |
+| Samples written per frame | 800 | 800 |
+
+The mixer's extra work costs about half a point of the emulation thread, which is inside the spread between runs (the idle figure is sampled about every three seconds, 23 samples per race). The underruns are where they were, in the first three seconds of driving, when the emulation thread is at 0% idle; the 113 ms measured in `audio-log-001.md` and the 173 and 152 ms here are three runs of the same thing. These two runs also took a screenshot at frames 12700, 13000 and 14000, which the earlier one did not. Outside that stretch nothing is lost in either page. The audio context reports the same latency as before (10 ms base, 40 ms output) and the queue sits at the same 80 ms, so sound still leaves about 130 ms after the emulation produces it, about 100 ms behind the picture.
+
+Outside the race nothing changed. The two training-video pieces captured from the page with the change (frames 4500 to 5700 and 10700 to 11900, 953,696 and 952,160 stereo samples) are bit for bit the native recording made before the change, and equally the native recording made after it, largest difference 0. The title and menu piece (frames 2000 to 3700) is 68% bit-identical to the old native recording and 75% to the new one with one fixed shift; the baseline page gives 70% and 69%. The rest differs for the reason given in `audio-log-001.md` (menu sounds and the music start fall at slightly different moments in each run, and the menu song is not the same in every run), not because of the mixer. No underrun before the race in either page.
+
+reB3 has nothing on the browser side of this: its mixer is harness code and there are no IOP modules on Xbox (see "What the Xbox reimplementation says" above).
+
+Nobody has listened to the browser either; the output was muted and everything here is measurement.
+
 ## Open points
 
 - **The crash still clips, and that may be right.** In the three seconds of the first crash (frames 13020 to 13200) 3.2%, 0.4% and 0.3% of the samples are at full scale. All of it is in core 1's own dry voice sum: the crash bed stream at volume `0x3979` peaks at 29,300 by itself, on top of the song at `0x2E14` and the impact effects. The SPU2 clamps that sum as the mixer does, so a console given the same registers clips the same way. Whether the registers are right is the question above: the PS2 twin of the function that sets the stream volumes (reB3's `FUN_0014B3D0` and `FUN_00150E80`) should be found and run in the harness.
-- **Reverb.** Core 1 has effects enabled in the race with `EVOL` = `0x101D`, and reB3 lists reverb boundaries among the track's trigger volumes, so some stretches of track do send voices to the reverb. It is not modelled.
+- **Reverb.** Core 1 has effects enabled in the race with `EVOL` = `0x101D`, and reB3 lists reverb boundaries among the track's trigger volumes, so some stretches of track do send voices to the reverb. Modelled since; see `docs/re/audio-log-002.md`.
 - **The engine send clamps.** The eight engine voices sum past 16 bits 0.66% of the time before the module reads them. The hardware write-back is 16 bits too, and the module is a distortion, so this is probably as intended; not confirmed.
 - The master volume in sweep mode is still read as full volume, and noise and pitch modulation are not implemented (the race trace shows both registers at 0).
 - Nobody has listened.

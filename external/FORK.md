@@ -131,3 +131,20 @@ so the fork lives outside the repo and is pinned here instead.
   This is a behaviour change for every game that uses the switches. The saved-state layout is
   unchanged (version stays 4); `Core::input` and `input_read` stay in it unused. Commit `b9afd4a`. See
   `docs/re/gap-011-spu2-mix-switches-and-input-area.md`; tests in `tests/runtime/test_spu2_mixer.cpp`.
+- `spu2: reverb; state files version 5 (version 4 still loads)`:
+  `runtime/src/iop/spu2.cpp`, `runtime/include/ps2/state.hpp`, `runtime/src/system.cpp`. Each
+  core's effects mix (voices by their effect-send switches, the sound-data input and, on core 1,
+  core 0's output, by the `MMIX` effects bits) goes through the SPU reverb in the core's work
+  area of SPU2 RAM (`ESA` to the end of the block `EEA` names) and comes back scaled by `EVOL`
+  before the master volume: half-rate, one side per sample, a 39-tap half-band filter in and out,
+  two reflection filters, four comb taps and two all-pass filters per side. It always runs and is
+  heard; it writes the work area and tests the address IRQ there only with ATTR bit 7 set; it is
+  skipped when effects are disabled with `EVOL` 0 or the work area is empty. The ten reverb gains
+  of each core's volume block are kept (they were discarded) and `PS2_TRACE_SPU2` logs the
+  volume block. State files: `state::kVersion` is 5 and `kOldestVersion` 4; `Stream::version`
+  carries the file's version so a section can skip fields old files lack (the SPU2 section's
+  reverb state). This is a behaviour change for every game that enables effects. Written from
+  the published formula (PSX-SPX) and PCSX2's description of the PS2 register layout; the
+  `0x324`/`0x328` sources are taken by position for both cores, where PCSX2 swaps them on
+  core 1. Commit `40e47c7`. See `docs/re/audio-log-002.md`; tests in
+  `tests/runtime/test_spu2_reverb.cpp`.
