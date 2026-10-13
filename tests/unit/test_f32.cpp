@@ -175,10 +175,30 @@ void comparisons_order_by_sign_and_magnitude() {
     CHECK(f32::from_bits(0xFFFFFFFFu) < f32::from_bits(0xFF7FFFFFu));
     CHECK(!(f32::lit(1.0f) < f32::lit(1.0f)));
     CHECK(f32::lit(1.0f) <= f32::lit(1.0f));
-    CHECK_EQ(max(f32::lit(-0.0f), f32{}).bits, 0x80000000u);            // equal keys: the first operand wins
-    CHECK_EQ(min(f32{}, f32::lit(-0.0f)).bits, 0u);
     CHECK_EQ(max(f32::lit(1.0f), f32::lit(2.0f)).bits, 0x40000000u);
     CHECK_EQ(min(f32::lit(1.0f), f32::lit(2.0f)).bits, 0x3F800000u);
+    CHECK_EQ(max(f32::lit(-1.0f), f32::lit(-2.0f)).bits, 0xBF800000u);
+    CHECK_EQ(min(f32::lit(-1.0f), f32::lit(-2.0f)).bits, 0xC0000000u);
+}
+
+// max and min compare the raw patterns as sign-magnitude integers and return one of them untouched:
+// unlike every other operation they do not flush denormals, and they tell -0 from +0. Game code uses
+// this to carry integers through float registers (docs/re/gap-009).
+void max_and_min_compare_raw_bits() {
+    const f32 integer = f32::from_bits(0x00000412u);                     // a denormal as a float
+    CHECK_EQ(max(f32{}, integer).bits, 0x00000412u);
+    CHECK_EQ(max(integer, f32{}).bits, 0x00000412u);
+    CHECK_EQ(min(integer, f32::lit(1.0f)).bits, 0x00000412u);
+    CHECK_EQ(min(f32{}, integer).bits, 0u);
+    CHECK(integer == f32{});                                            // while the comparisons still call it zero
+    CHECK_EQ(max(f32::from_bits(0x80000412u), f32::lit(-0.0f)).bits, 0x80000000u);
+    CHECK_EQ(min(f32::from_bits(0x80000412u), f32::lit(-0.0f)).bits, 0x80000412u);
+    CHECK_EQ(max(f32::lit(-0.0f), f32{}).bits, 0u);                      // -0 is below +0, in either order
+    CHECK_EQ(max(f32{}, f32::lit(-0.0f)).bits, 0u);
+    CHECK_EQ(min(f32{}, f32::lit(-0.0f)).bits, 0x80000000u);
+    CHECK_EQ(min(f32::lit(-0.0f), f32{}).bits, 0x80000000u);
+    CHECK_EQ(max(f32::from_bits(0x7FFFFFFFu), f32::from_bits(0x7F7FFFFFu)).bits, 0x7FFFFFFFu);
+    CHECK_EQ(min(f32::from_bits(0xFFFFFFFFu), f32::from_bits(0xFF7FFFFFu)).bits, 0xFFFFFFFFu);
 }
 
 }
@@ -193,5 +213,6 @@ int main() {
     division_by_zero_gives_the_largest_value_and_raises_the_flags();
     square_roots_ignore_the_sign();
     comparisons_order_by_sign_and_magnitude();
+    max_and_min_compare_raw_bits();
     return check::done("test_f32");
 }

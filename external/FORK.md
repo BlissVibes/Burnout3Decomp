@@ -83,4 +83,22 @@ so the fork lives outside the repo and is pinned here instead.
   register before the call, so sticky flags can be tested from a clear state; `--a0 x64:HEX`
   (any of `a0`-`a3`, `t0`-`t3`) sets all 64 bits of an argument register, the plain form stays
   32 bits sign-extended. Commit: `5b782b3`. See the follow-up in `docs/re/harness-log-002.md`.
+- `gif: MSKPATH3 releases one PATH3 packet per unmask (race texture batches)`:
+  `runtime/src/gs/gif.cpp`, `gif.hpp`, `runtime/src/vif.cpp`. PATH3 masking now works on GS
+  packets (a packet ends with the data of the tag that has EOP): lifting the mask forwards
+  exactly one held packet, a mask that arrives mid-packet lets that packet finish, and the rest
+  drains only once PATH3 has demonstrably stayed open (a working VIF1 code after the unmask,
+  new channel-2 data while unmasked, or the EE reading GIF_STAT). Before, the whole held buffer
+  went at the first unmask, which overwrote all but the last of a frame's texture batches.
+  New switch `PS2_TRACE_PATH3`. State version stays 4. Commit `c7abe06`. See
+  `docs/re/gap-008-path3-mask-releases-one-packet.md`.
+- `fpu, vu: MAX and MIN compare raw sign-magnitude patterns, no denormal flush`:
+  `runtime/include/ps2/fpu.hpp` (new `fp::order`; `fp::max`/`fp::min` use it),
+  `runtime/include/ps2/vu_ops.hpp` (`vmax`/`vmin`), `runtime/src/vu_jit.cpp` (the WebAssembly
+  VU JIT emits the same order). MAX, MINI and the EE's `max.s`/`min.s` return one operand
+  untouched, chosen by comparing the bit patterns as sign-magnitude integers, so a denormal
+  (an integer moved through a float register with `MAXi vf0, I`) survives and -0 orders below
+  +0. This is a behaviour change for every game; the JIT path has only been compiled natively
+  so far and needs one browser run. State version stays 4. Commit `1334998`. See
+  `docs/re/gap-009-vu-max-mini-flushed-denormals.md`.
 

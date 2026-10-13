@@ -12,7 +12,7 @@
 //   div.s                a / b, or div(c, a, b) to raise the fcr31 flags as the instruction does
 //   neg.s abs.s          -a, abs(a)               (sign-bit operations: no flush, no rounding)
 //   sqrt.s rsqrt.s       sqrt(a), rsqrt(a, b) = a / sqrt(b), or rsqrt(c, a, b) with the flags
-//   max.s min.s          max(a, b), min(a, b)
+//   max.s min.s          max(a, b), min(a, b)     (raw sign-magnitude compare: keep denormals, -0 < +0)
 //   madd.s msub.s        madd(acc, a, b), msub(acc, a, b): two truncations, never fused
 //   c.eq.s c.lt.s c.le.s a == b, a < b, a <= b    (> and >= are the same tests with operands swapped)
 //   cvt.w.s cvt.s.w      a.to_s32() truncates and saturates; f32::from_s32(n) truncates
