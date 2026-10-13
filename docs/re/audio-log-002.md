@@ -55,5 +55,19 @@ A cold boot along the menu route to frame 14100: boot, EA logo, Criterion logo, 
 - Not compared with a console or with PCSX2 on the same stretch. The formula is the documented one and the implementation matches a second transcription of it, which catches slips, not a misreading shared by both.
 - No stretch of track that sends effect voices to the reverb has been recorded.
 - The browser page is rebuilt with the reverb but has not been run.
-- Still missing in the mixer: the hardware's four-point Gaussian interpolation (the mixer interpolates linearly), master-volume sweeps, noise and pitch modulation (the race trace has both of those registers at 0).
+- Still missing in the mixer: master-volume sweeps, noise and pitch modulation (the race trace has both of those registers at 0). The hardware's sample interpolation was added next; see the section below.
 - Nobody has listened.
+
+## Sample interpolation (added the same day, fork commit `e1ebb50`)
+
+The mixer drew a straight line between two decoded samples. The SPU2, like the first PlayStation's SPU, weights four neighbouring samples with a 512-entry table indexed by the top eight bits of the fraction of the read position. The table is hardware data, published in PSX-SPX; PCSX2's own 256 by 4 table holds the same values in another arrangement (its first row is entries `0xFF`, `0x1FF`, `0x100` and `0` of the published table). The fork now uses the published table: taken from the document by script, 512 values, and the document's own check holds for it (the four weights of every index add up to `0x7F7F` to `0x7F81`).
+
+Effect, as the table predicts: a steady sample comes out 0.03 dB lower, and the top of the spectrum is rounded off a little. In six seconds of driving the share of energy from 2 to 6 kHz goes from 5.9% to 5.5%, from 6 to 12 kHz from 0.8% to 0.6%, and above 12 kHz from 0.1% to under 0.05%; the level moves by 0.1 dB and clipping in the crash drops slightly (3.18% to 3.02% in its worst second). This changes the tone of every voice in every game.
+
+A cold boot along the menu route to frame 14100 reaches the race with 0 IOP faults, and every section before the race is within 0.1 dB of the recording made before the change (EA logo -29.3 / -28.3 against -29.2 / -28.2 dBFS, intro -22.1 / -22.7 against -22.0 / -22.6, title -18.8 / -19.6 against -18.8 / -19.5, training video -21.6 / -21.6 against -21.6 / -21.5).
+
+One departure from the hardware: the four samples are taken from the read position onwards (the block after is already decoded) and not from the three before it, so a voice sounds two samples earlier than on a console. That keeps the voice record, and with it the saved-state layout, as it was.
+
+Tests (`tests/runtime/test_spu2_mixer.cpp`, now 14 tests and 67 checks): a steady sample keeps the level the table gives at every index, and a single sample comes out as the bell the table describes (its centre weight `0x59B3` and the weights one sample either side, `0x1307` and `0x12C7`), wider than a straight line would make it. The expected levels of the other tests moved by the 0.03 dB.
+
+Seen while doing this and not changed: a voice whose data ends without a loop is silenced when its end block is decoded, which is one block before that block is played, so the last 28 to 56 samples of a one-shot sound are cut. On hardware the end takes effect when the block has been played.

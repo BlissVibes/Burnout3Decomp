@@ -148,3 +148,11 @@ so the fork lives outside the repo and is pinned here instead.
   `0x324`/`0x328` sources are taken by position for both cores, where PCSX2 swaps them on
   core 1. Commit `40e47c7`. See `docs/re/audio-log-002.md`; tests in
   `tests/runtime/test_spu2_reverb.cpp`.
+- `spu2: four-point sample interpolation`: `runtime/src/iop/spu2.cpp`. A voice's output sample is
+  four neighbouring decoded samples weighted by the SPU's 512-entry table (index: the top eight
+  bits of the fraction of the read position), where it was a straight line between two. The
+  table is hardware data as published in PSX-SPX. The four samples run from the read position
+  onwards, so a voice sounds two samples earlier than on hardware; the voice record and the
+  saved-state layout are unchanged. This changes the tone of every voice in every game (a
+  steady sample is 0.03 dB lower, the top octave slightly softer). Commit `e1ebb50`. See
+  `docs/re/audio-log-002.md`.

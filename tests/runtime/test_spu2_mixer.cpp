@@ -6,6 +6,8 @@
 
 #include "spu2_fixture.hpp"
 
+#include <algorithm>
+
 namespace {
 
 void a_voice_is_heard_only_on_the_sides_its_dry_switches_allow() {
@@ -155,6 +157,45 @@ void a_sweep_keeps_its_pace_through_a_key_on() {
     CHECK(about(left(), (kCore1Voice * (0x7FFE - 64 * 64)) >> 15));
 }
 
+// What a sample of core 1's voice 0 at full volumes is at the output.
+int through(int sample) { return ((((sample * 0x7FFF) >> 15) * 0x7FFE >> 15) * 0x7FFE) >> 15; }
+
+void a_steady_sample_keeps_its_level_at_every_interpolation_phase() {
+    fresh();
+    start_voice(1, 0, 0x5000, 0x3FFF, 0x3FFF);
+    reg(1, 0x4, 0x0101);                       // a pitch that visits every phase
+    run(140);
+    int low = 32767, high = -32768;
+    for (std::size_t i = 64; i < g_out.size() / 2; ++i) {
+        low = std::min<int>(low, g_out[i * 2]);
+        high = std::max<int>(high, g_out[i * 2]);
+    }
+    // The four weights of a phase add up to 0x7F7F to 0x7F81 of 0x8000 (the published property of the table).
+    CHECK(low >= through(16384 * 0x7F7F >> 15) - 4);
+    CHECK(high <= through(16384 * 0x7F81 >> 15) + 1);
+}
+
+void a_single_sample_comes_out_as_the_four_point_bell() {
+    fresh();
+    start_voice(1, 0, 0x5000, 0x3FFF, 0x3FFF);
+    for (int i = 1; i < 8; ++i) spu2::ram()[0x5000 + i] = 0;
+    spu2::ram()[0x5003] = 0x0700;              // sample 10 of the 28 is 0x7000, the rest are 0
+    reg(1, 0x4, 0x0100);                       // sixteen output samples per sample
+    run(40);
+    std::size_t peak = 0;
+    for (std::size_t i = 64; i < 28 * 16 + 64; ++i)
+        if (g_out[i * 2] > g_out[peak * 2]) peak = i;
+    // The centre, and the weights one sample either side of it: 0x59B3, 0x1307 and 0x12C7 of 0x8000.
+    CHECK(about(g_out[peak * 2], through(0x7000 * 0x59B3 >> 15)));
+    CHECK(about(g_out[(peak - 16) * 2], through(0x7000 * 0x1307 >> 15)));
+    CHECK(about(g_out[(peak + 16) * 2], through(0x7000 * 0x12C7 >> 15)));
+    bool bell = true;
+    for (std::size_t d = 0; d < 31; ++d) bell = bell && g_out[(peak - d - 1) * 2] <= g_out[(peak - d) * 2] && g_out[(peak + d + 1) * 2] <= g_out[(peak + d) * 2];
+    CHECK(bell);
+    CHECK(g_out[(peak - 24) * 2] > 0);         // wider than a straight line between two samples would be
+    CHECK(g_out[(peak + 24) * 2] > 0);
+}
+
 void reading_the_input_area_raises_the_address_interrupt() {
     fresh();
     reg(1, kIrqa, 0);
@@ -227,6 +268,8 @@ int main() {
     the_input_volume_scales_the_input();
     the_mix_switches_gate_voices_and_input_per_side();
     core_0_reaches_the_output_through_core_1s_external_input();
+    a_steady_sample_keeps_its_level_at_every_interpolation_phase();
+    a_single_sample_comes_out_as_the_four_point_bell();
     a_volume_sweep_runs_while_the_voice_is_stopped();
     a_sweep_keeps_its_pace_through_a_key_on();
     reading_the_input_area_raises_the_address_interrupt();

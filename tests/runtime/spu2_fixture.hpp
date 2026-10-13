@@ -58,11 +58,12 @@ constexpr std::uint32_t kVmixl = 0x188, kVmixel = 0x18C, kVmixr = 0x190, kVmixer
                         kAdmas = 0x1B0;
 // Volumes of one core.
 constexpr std::uint32_t kMvoll = 0x0, kMvolr = 0x2, kAvoll = 0x8, kAvolr = 0xA, kBvoll = 0xC, kBvolr = 0xE;
-// The test voice plays a constant 16384; these are what is left of it after each stage (the volumes are a little under 1).
-constexpr int kVoice = 16382;        // after the envelope and a voice volume of 0x3FFF
-constexpr int kCore1Voice = 16381;   // a core 1 voice at the output
-constexpr int kCore0Out = 16381;     // a core 0 voice in core 0's output
-constexpr int kCore0Voice = 16379;   // a core 0 voice at the output, through core 1
+// The test voice plays a constant 16384, which the four-point interpolation passes at 16318 (its four weights
+// add up to a little under 1); these are what is left after each stage (the volumes are a little under 1 too).
+constexpr int kVoice = 16316;        // after the envelope and a voice volume of 0x3FFF
+constexpr int kCore1Voice = 16315;   // a core 1 voice at the output
+constexpr int kCore0Out = 16315;     // a core 0 voice in core 0's output
+constexpr int kCore0Voice = 16313;   // a core 0 voice at the output, through core 1
 
 void reg(int core, std::uint32_t off, std::uint32_t value) { spu2::write(kRegisters + core * 0x400 + off, value, 2); }
 std::uint32_t reg(int core, std::uint32_t off) { return spu2::read(kRegisters + core * 0x400 + off, 2); }
