@@ -80,6 +80,12 @@ After gap 012 the race from the same state is a different and heavier one (72,74
 
 After that the shared generated code (`generated/burnout3`) was regenerated with the check and the main native build and the browser page rebuilt from it (`ps2web.wasm` 24,845,564 bytes, 150 KB more). The page has not been run since; what the check costs in WebAssembly has not been measured.
 
+## The snapshot tests on the corrected race
+
+The race01 corpus was recorded while cars were being thrown off the map (gap 012), so it is replaced: `~/b3/out/snaps/race02`, twelve states from frame 12450 to 14100 every 150, state version 6, recorded from the pre-race state with fork 76eb759 plus Part 3b (hooks off); `CMD.txt` and a frame for each state are beside them. race01 is deleted.
+
+All eighteen functions of the two decomp logs were run again on race02 with the fork at f2f31d2 and the case files and comparisons of `docs/re/harness-log-002.md` and `docs/re/decomp-log-002.md`: 33,000 cases, 0 fail, 0 skip (`~/b3/out/harness07/`).
+
 ## Tests
 
 - `tests/test_recomp_hook_check.py` runs `eerecomp` on a made-up three-function program (one of them a loop whose head is its first instruction) and reads the generated C++: the three function arms have the check, the arms of return addresses do not, and the loop branch goes to the label past it. Three tests, failing before the change; needs `B3_EERECOMP`, skipped without it.
