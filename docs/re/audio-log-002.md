@@ -83,3 +83,18 @@ The voice record keeps its layout but its buffer and read position mean somethin
 What it changes in the game: in the 30 seconds of race from the pre-race state the level per second is the same to 0.1 dB as before the change, and a cold boot to frame 14100 has every section before the race within 0.1 dB, with the stream voices (title, menu and video sound, which loop over two buffers and depend on the block addresses and the address IRQ) playing as before and 0 IOP faults. The difference is at the ends of one-shot effects, a millisecond or two each, which these measurements do not resolve.
 
 Tests (`tests/runtime/test_spu2_mixer.cpp`, now 18 tests and 84 checks): a voice starts from silence behind its first sample (the first four output samples); a sound of two blocks without a loop sounds for all of its samples, at full level to the last, with ENDX clear at 32 samples and set once it has ended; a two-block loop plays its blocks in turn and reports the block being read; a playing voice in a state marked as an older version keeps playing. Eight of the checks failed before the change. The function harness still runs on the version 4 snapshot corpora (1,166 and 312 cases, 0 fail), and a snapshot written by this build is version 6 and loads.
+
+## The corrected race (after gap 012)
+
+Everything above was measured on the race as it was before `docs/re/gap-012-vu-fmor-fsor-wrong-meaning.md`: the player's car was thrown off the map eight seconds in, so "the crash" in those recordings was that. The race from the same pre-race state with the fork at 76eb759 and all the mixer changes (`~/b3/out/audio02/race-corrected.wav`, recorded with the race02 snapshot corpus; 72.7 million primitives drawn against 54.9 million before, 0 IOP faults):
+
+| Seconds after frame 12300 | What happens (frames kept every 150) | RMS dBFS | Samples at full scale |
+|---|---|---|---|
+| 1 to 5 | grid | -36 to -27 | 0 |
+| 6 to 11 | driving off, 50 to 100 mph | -22 to -13.5 | 0 |
+| 12 to 13 | | -9.4, -9.7 | 0.42%, 0.17% |
+| 14 to 16 | a rival's crash shown in the takedown view | -6.7, -7.6, -8.6 | 5.7%, 2.1%, 1.9% |
+| 17 to 25 | driving, trading paint | -12 to -15 | under 0.11% each second, 0 in most |
+| 26 to 28 | an escape past a wreck | -8.1, -9.3, -11.8 | 2.2%, 0.45%, 0.21% |
+
+Over the 24 seconds of race 0.56% of the samples are at full scale, all of it in the seconds where a crash is being shown. Plain driving does not clip and is quieter than in the broken race, where the engine was always near the limiter. So the open point of gap 011 stands on the corrected race: crash and takedown sequences drive core 1's voice sum past full scale. Whether a console does the same depends on the stream and effect volumes the game sets there, which nobody has checked against the game's own code yet.
