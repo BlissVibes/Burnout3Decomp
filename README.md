@@ -29,13 +29,30 @@ bash tools/wsl-setup.sh          # once
 python3 tools/verify-iso.py ~/b3/iso/burnout3.iso
 tools/port.sh                    # recompile + headless exploring runs
 tools/build-web.sh               # page into ~/b3/out/web
-python3 ~/b3/ps2-web-recomp/scripts/serve.py ~/b3/out/web ~/b3/iso/burnout3.iso
+python3 ~/b3/ps2-web-recomp/scripts/serve.py ~/b3/out/web ~/b3/out/web/boot.txt
 ```
+The second argument of `serve.py` is the file it would hand out as the disc. `boot.txt` stands in
+for it, so the server holds no disc and the page asks for your ISO.
+
+`tools/port.sh` first brings the fork's recompilers (`build/tools/eerecomp`, `vurecomp`) up to
+date, because the fork's own script builds them only when they are missing.
 `tools/port.sh` stops a headless run whose log passes 1 GB or that runs longer than
 30 minutes, prints `log cap hit` or `run timeout hit` and exits 1. Change the limits
 with `B3_LOG_CAP_BYTES` (bytes) and `B3_RUN_TIMEOUT` (seconds); 0 turns one off.
 
-Tests: `python3 -m unittest discover -s tests -p 'test_*.py'` and `node --test`.
+Tests, four commands:
+```
+python3 -m unittest discover -s tests -p 'test_*.py'   # tools, and the fork's two recompilers
+node --test                                            # the page's scripts
+bash tests/unit/run.sh ~/b3/ps2-web-recomp             # decompiled functions against the fork's headers
+bash tests/runtime/run.sh ~/b3/ps2-web-recomp          # single runtime sources of the fork, built alone
+```
+The two Python tests that run the fork's recompilers (`test_recomp_hook_check.py`,
+`test_vurecomp_flag_or.py`) take `~/b3/ps2-web-recomp/build/tools/eerecomp` and `vurecomp`, the
+binaries `tools/port.sh` uses; `B3_EERECOMP` and `B3_VURECOMP` name others. They are skipped where
+neither exists. No one box runs every Python test: the audio check needs numpy (Windows python
+here), the run watcher needs `/proc` (WSL). `node --test` needs Node 20 or later for `File`: with
+WSL's Node 18 five of the disc tests fail, with Windows' Node 24 all 17 pass.
 
 ## Private deploy (Vercel)
 The built page contains the game's executable (`ps2web.data`) and its translated

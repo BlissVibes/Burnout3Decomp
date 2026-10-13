@@ -1,0 +1,113 @@
+# Open issues: one list — 2026-10-13
+
+Every item the logs mark open, unchecked, deferred or unknown, with its state today. Made from the audit of 2026-10-13, which read all of `docs/re/`, `docs/PROGRESS.md`, `external/FORK.md` and the two research documents; each row was opened again when this file was written, and each "closed" row was checked against the later document or the fork's source at a854891.
+
+**46 items: 31 are open, 2 are half closed (rows 13 and 44), 12 are closed and 1 is not an issue (row 45). Two of the open ones had been counted as closed (rows 35 and 38). Rows 1 to 13 and row 39 are the ones that matter; the rest are small or wait on those.**
+
+How to use it: close a row here in the commit that closes the item. The "Not done" sections of the dated logs are records and are not edited afterwards, so this file is the one place that says where an item stands. Line numbers are those of the documents at repo commit a6580e6. Fork paths are under `~/b3/ps2-web-recomp`.
+
+## 1. Items from the logs
+
+| # | Item | From | State today | Still matters? |
+|---|---|---|---|---|
+| 1 | The exact VU0 interpreter is 38% of the emulation thread. | `web-log-002.md`:57-63, `web-log-003.md`:105 | Open, in work: another workflow is changing the VU0 loop in the fork's main checkout today. | Yes. The largest cost on the fullest thread. |
+| 2 | The callers of VU0 entries `0x0138` and `0x0A18` (51% of VU0 instructions) are not identified. | `web-log-002.md`:52, 62 | Open. | Only for the hook route; not if row 1 succeeds. |
+| 3 | The VU JIT keeps host rounding for SUB, MADD and MSUB (MADD is 53% of the adder's use). | `gap-013`:50, 86; `FORK.md`, entry `f2f31d2` | Open. Waits for room on the VU thread; audit findings 0 and 43 would make room. | Accuracy only. No visible fault is known. |
+| 4 | The VU multiplier is the host's on every fast path. | `gap-013`:52-54 | Open. | Low. No effect has been seen. |
+| 5 | Nobody has listened to any audio. Nobody has played the page by hand or with a real pad. | `audio-log-001.md`:3, `audio-log-002.md`:59, `web-log-003.md`:106, `PROGRESS.md` rows of 10-12 and 10-13 | Open. Milestone 2's exit asks for both (design spec, line 114). | Yes. Rows 6, 10, 17 and 35 wait on it. |
+| 6 | A crash or takedown clips core 1's voice sum. The volumes were never checked against the game's own code; the PS2 twins of reB3's two volume setters are not found. | `gap-011`:144, `audio-log-002.md`:100 | Open, and stated too strongly in one respect: the existing traces show the game keys the song off for the crash bed, so the 1.25 against 2.33 volume ratio of `gap-011`:39 is not a mix balance (audit finding 9; the two documents are being corrected today). The bed's volume `0x3979` is still unchecked, and the trace is of the broken race. | Until someone listens. |
+| 7 | In a hidden or covered tab the page stays on "Loading" and the game does not advance. | `PROGRESS.md`:19 | Open, and still true in the code: start-up awaits `requestAnimationFrame` (`web/shell.html`:470) and so does every presented frame (fork `host/web.cpp`:101-106); a hidden tab gets none. Read from the code, not run. Audit finding 2. | Yes, for milestone 3. |
+| 8 | A memory card save has not been checked. No Vercel deployment has been made, only the dry run. | `PROGRESS.md`:19; `README.md` | Open. The deployment half is the absence of a record (no `PROGRESS.md` row); Vercel itself was not asked. | Yes. Both are milestone 3's exit. |
+| 9 | The IOP import `modload` #18 is missing, so the scan never says CLEAN and milestone 1's written exit condition is unmet. | `boot-log-010.md`:158-160 | Open. Fork `runtime/src/iop/libs.cpp`:881-904 defines exports 13, 16, 17 and 22 only; the call is made once a boot from IOP `0x0006C1B4`; `tools/scan-log.py` has no list of accepted gaps. | As bookkeeping: every scan says GAPS. No symptom. |
+| 10 | The strength of the speed blur needs a frame from a console to judge. | `gap-012`:105, `PROGRESS.md`:30 | Open. | Low. |
+| 11 | Frame dumps differ between two runs of the same build, so pictures cannot be an equality check. | `web-log-003.md`:34, `boot-log-011.md`:58 | Open; the likely cause is now known. The GPU rasteriser does not isolate a primitive that samples the buffer it draws into, which the speed blur does (audit finding 17; correction in `web-log-003.md`). Not traced to the primitive. | Yes. Until it is fixed the checks are cycles, primitives and audio. |
+| 12 | Hooks are registered but not enabled in the page or the shared native build. | `harness-log-003.md`:101, `PROGRESS.md`:28 | Open, by decision. Fork `host/web.cpp`:363 calls `register_hooks()` and nothing enables a hook. | Yes, for milestone 4: a verified function is proven but does not run in the game. |
+| 13 | What the hook check at every function entry costs in WebAssembly was never measured on its own. | `web-log-002.md`:22, `harness-log-003.md`:81 | Half closed. Its size is measured: 6,113 sites of about 33 bytes, 0.20 MB, under 1% of unit code (audit finding 28, which advises leaving it in). Its time is not; generated code as a whole is 13.7% of the thread. | Low. |
+| 14 | The idle call is registered for one callback only. | `web-log-003.md`:104 | Open. `src/hooks/hooks_table.cpp`:196 is the only `add_idle_call`. | Low. Another screen would spin as before. |
+| 15 | The GIF copy into the render queue is 2 to 3% of the emulation thread. | `web-log-003.md`:103 | Open. In the page PATH3 data is copied three times, not two (audit finding 42). | Low. |
+| 16 | A master volume in sweep mode is read as full volume; noise and pitch modulation are absent. | `gap-011`:147, `audio-log-002.md`:58 | Open. Fork `runtime/src/iop/spu2.cpp`:313 returns `0x7FFF` for a sweep. | Low for this game: the race trace has both registers at 0. |
+| 17 | Reverb not compared with a console or PCSX2; no stretch with effect voices recorded; stream decoder not checked against a second decoder; the engine send clamp "not confirmed"; 130 ms of sound latency for a listener to judge. | `audio-log-002.md`:55-56, `audio-log-001.md`:62 and 100, `gap-011`:146 | Open, all five. | Low until row 5. |
+| 18 | Red-cross boards: whether nearer geometry hides them correctly is not checked. | `gap-012`:103 | Open. The boards themselves are intended (`PROGRESS.md`:30); the ones seen through a shop front at 12900 were ghosts in the haze of gap 013. | Low. |
+| 19 | The GS stores MIPTBP1 and MIPTBP2 and never reads them. | `boot-log-011.md`:168 | Open. Fork `runtime/src/gs/gs.cpp`:498-499 are their only uses. Ruled out as the cause of gap 008 only. | Low. No fault is traced to it. |
+| 20 | VU pipeline stalls are not modelled; Q and P latency is counted in instructions. | `gap-010`:35 | Open. | Low. |
+| 21 | The INTC latency change was never run on GT4 or God of War II. | `FORK.md`, entry `07c4fb7` | Open. | Only for offering the change upstream. |
+| 22 | Harness limits: seven of nineteen functions are never called in the race stretch; a shadow comparison copies EE RAM five times, 20 ms; a same-unit `j` is not offered to hooks; hooks use no emulated time; `--snapshot-on-entry` is not wired; the custom-syscall-handler branch is untested; stale `f3` and out-of-domain inputs. | `harness-log-003.md`:96-102, `harness-log-001.md`:90, `harness-log-002.md`:214 | Open, all seven. `set_entry_snapshot` (fork `runtime/src/hooks.cpp`:67) has no caller in `host/`. Audit findings 37 and 38 add two more and are being fixed today. | When more functions are hooked. |
+| 23 | Whether the 12 units only the hand-seeded build had contain real code. | `gap-001`:110 | Closed 2026-10-13: they are data (`gap-001`, "Later" under Status; `docs/research/decomp-groundwork.md`:20-21; audit finding 36). | No. |
+| 24 | Which commands the `0xD` SIF replies answer. | `boot-log-009.md`:86 | Open. | Low. No symptom. |
+| 25 | Eight sibling functions named as the next decomp targets. | `decomp-log-002.md`:183-185 | Open. | A to-do, not a fault. |
+| 26 | `decomp-groundwork.md` section 12, questions 1 to 8, and `reb3-crosswalk.md` questions 4 and 5. | `docs/research/decomp-groundwork.md`:258-267, `docs/research/reb3-crosswalk.md`:74-75 | Open. Not checked against later work. | For the decomp work as it reaches them. |
+| 27 | Headroom on a slower machine. | `web-log-001.md`:55 | Open. Nothing has been measured on another machine. On this one the race's emulation-thread idle went from about 10% to about 30% (`web-log-003.md`). | Yes: the page is for two developers on two machines. |
+| 28 | White-outs of the 3D view. | `gap-012`:104, `gap-010`:65 | Closed by gap 013 (fork `a765dc8`, `f2f31d2`): `gap-013`:9-14 and 80. | No. |
+| 29 | The CRASHED! banner at the start, 4205 mph, the crash camera over mountains. | `gap-010`:61-64 | Closed by gap 012 (fork `76eb759`): `gap-012`:9-11 and 75. | No. |
+| 30 | The boost bar drawn as a dotted strip. | `gap-010`:66 | Closed as intended, on reB3's reading (`gap-012`:105). Not compared with a console frame. | No. |
+| 31 | The JIT's MAX and MIN "need one browser run". | `gap-009`:62, `FORK.md`, entry `1334998` | Closed by `web-log-001.md`:35. `FORK.md` says so now; `gap-009` does not yet. | No. |
+| 32 | "The page with reverb has not been run." | `audio-log-002.md`:57 | Closed: the page at fork `b2c8a15`, which contains the reverb (`40e47c7`), ran the race (`web-log-002.md`:3), and again at `a854891` (`web-log-003.md`). | No. |
+| 33 | eerecomp leaves stale unit files behind. | `gap-001`:104, 110 | Closed by fork `15b4c42`: `recomp/codegen.cpp`:829-835 removes unit files the pass did not write. | No. |
+| 34 | PATH3 is not stalled while masked ("not done on purpose"). | `gap-003`:58 | Closed by gaps 004 and 008 (fork `8aca713`, `c7abe06`): masked PATH3 data is held and released a packet at a time. | No. |
+| 35 | Audio dropouts at the start of the race. | `audio-log-001.md`:79, 136 | Reduced, not closed. The 113 ms in 72 dropouts was the broken race. The corrected race has 0 to 14 ms mid-race (`web-log-003.md`:88) and, before the race starts, 32 to 59 ms from an empty queue in 4 of 6 runs, which no log lists (audit finding 8). Nobody has heard either. | Yes, low: one short gap in a quiet fade-in per race load. |
+| 36 | The harness figures are from the broken race. | `harness-log-003.md`:103 | Closed in the same file, lines 77-87: shadow mode and the snapshot tests were rerun on the corrected race. | No. |
+| 37 | `reb3-crosswalk.md` questions 1 to 3. | `docs/research/reb3-crosswalk.md`:71-73 | Closed in `decomp-groundwork.md`: the compiler is Metrowerks CodeWarrior (line 31), the ValueDB table is the standard CRC-32 table (line 125), the vehicle's physics window keeps the Xbox layout (line 163). The racecar layout is still open there (its question 4, row 26). | No. |
+| 38 | "The SPU2 cost is not measured." | `web-log-002.md`:65 | Stated too strongly by the audit's first list. The line gives the mixer's cost (2.7% then, 1.5% in the later profile) and says the before and after of that week's changes was not measured. It still is not. The reverb is about half the mixer (audit finding 13). | Low. |
+| 39 | Cold boots are not repeatable. Three runs of one schedule differ by up to 1,250 primitives and 61 cycles; the menu plays a different piece from run to run, 14 dB apart. The cause was not looked for. | `harness-log-001.md`:50-53, `gap-011`:91 | Open. Not the same as row 11: this is the game's course, not the picture. | Yes. It limits every equality check that starts from boot. Runs from a saved state are identical in cycles, primitives and audio (`web-log-003.md`:25-32). |
+| 40 | Gap 006's "call ended by a fault" path was never exercised. | `gap-006`:264 | Open. No fault has occurred in any run since, and no test covers the path. | Low. |
+| 41 | SPU2 and SIF behaviour left unmodelled by gap 007: STATX busy bit never set, cid-0 handlers synchronous, one ADMA completion per transfer, B3ROUTE's core 1 IRQA points outside the write-back areas. | `gap-007`:196-202 | Open for the first two and the last (the fork's `spu2.cpp` still has no STATX busy bit). The ADMA completion was not rechecked: `b9afd4a` changed how auto-DMA fills the input area. Two more of that list were closed later, by `FORK.md`'s account: the input area is read at the output position and tests the address IRQ (`b9afd4a`), and the reverb work area tests it too (`40e47c7`). | Low. No symptom. |
+| 42 | Whether the MIPTBP writes before the race were non-zero. | `boot-log-011.md`:120 | Open. | Low. Goes with row 19. |
+| 43 | The harness could not clear `fcr31` or pass 64-bit arguments. | `harness-log-002.md`:131-141 | Closed in the same file's follow-up (line 164) and fork `5b782b3`: `--fcr31` and `x64:` in `host/main.cpp`:32-33. | No. |
+| 44 | Decomp batch 2, not covered: no natural call replayed; hooks reach only calls through `dispatch()`; preconditions not exercised; three sibling stamp functions not hooked. | `decomp-log-002.md`:159-170 | Half closed. Hooks reach direct callers since fork `b2c8a15`, and shadow mode compared 27,615 real calls on the corrected race (`harness-log-003.md`:79). Entry snapshots are still not wired (row 22); the preconditions and the three siblings are as they were. | With row 25. |
+| 45 | The plan file has 76 boxes, none ticked. | `docs/superpowers/plans/2026-10-10-burnout3-browser-port-m0-m3.md` | Not an issue: the plan was never used to record state. `PROGRESS.md` is the record. Listed so that nobody reads the boxes as status. | No. |
+| 46 | "The JIT still delivers Q and P at once." | `gap-010`:39 | Closed by fork `547315b` (`web-log-001.md`:36-42). `vurecomp` still does; no program is compiled with it for this game. | No. |
+
+## 2. The audit's own findings (2026-10-13)
+
+The audit kept 46 findings and refuted 2. The index is the audit's. "Being fixed" means an agent was working on it when this file was written; change the row when the fix is committed. "Queued" means nobody has started. Speed and memory figures are the audit's estimates unless a log says otherwise.
+
+| # | Finding | State |
+|---|---|---|
+| 0 | The VU JIT emits 6 to 9 `v128.const` per VU instruction and V8 rebuilds each at every use. Held in locals: perhaps 11 to 17 points of VU-thread time. | Queued. Measure in Chrome first. |
+| 1 | The page's disc chunk cache can hand the game the wrong 256 KB of the disc once all 256 slots are full. | Being fixed 2026-10-13 (planner). |
+| 2 | Game speed is tied to `requestAnimationFrame`, and to the audio device with no fallback: a 50 Hz screen gives 94% speed; a hidden tab stops the game (row 7). | Queued. |
+| 3 | `tools/port.sh` regenerated the game with recompilers built on 2026-10-10, without the hook check and the gap 012 change. | Fixed 2026-10-13: both rebuilt, `tools/port.sh` brings them up to date first, and the two guard tests run against them by default. |
+| 4 | The VU interpreters and the VU JIT have no automated test; guard tests were skipped by default. | Part done 2026-10-13: the guard tests no longer need a variable, and another workflow is adding interpreter tests. The JIT has none. |
+| 5 | Neither repository has a copy off this machine: the fork's 26 commits and this repo's 64 are not pushed. | Bundles of both made 2026-10-13 (`external/FORK.md`, header). Not pushed: that needs Mark's yes. |
+| 6 | In the JIT, FTOI, ITOF, CLIP, OPMULA and OPMSUB go lane by lane through calls: 6 to 11 points of the VU thread. | Queued. |
+| 7 | Each XGKICK is gathered into a buffer, copied into the render ring and posted as its own message: 8.8% of the VU thread. | Queued. |
+| 8 | Race load plays 32 to 59 ms from an empty audio queue in 4 of 6 runs (row 35). | Queued. Find what holds the thread first. |
+| 9 | Crash clipping: the game stops the song for the crash bed, and the bed alone peaks 1 dB under full scale (row 6). | Being fixed 2026-10-13 (documents). |
+| 10 | Exponential decreases of the SPU2 envelope never reach zero: a released voice can sound for ever at up to 12.5%. | Being fixed 2026-10-13. |
+| 11 | The master-volume multiply wraps in 32 bits: a mix above twice full scale comes out at the opposite rail. | Being fixed 2026-10-13. |
+| 12 | "idle emu" counts time blocked on the renderer as idle; the audio pacing loop has no way out if the worklet stops. | Queued. |
+| 13 | The reverb is about half the mixer's cost; its work-area addresses take 40 64-bit divisions a sample. | Being fixed 2026-10-13. |
+| 14 | About 82% of guest memory accesses in generated code are out-of-line calls. | Queued. Needs a regeneration. |
+| 15 | The EE's own float code (COP1 and COP2 macro mode) still runs on the integer float routines. | Queued, after the VU0 work lands. |
+| 16 | EE timer compare and overflow are detected by equality when the event runs; a late event loses the interrupt. | Being fixed 2026-10-13. |
+| 17 | Frame dumps differ because the GPU rasteriser races on frame-buffer feedback (row 11). | Queued. `web-log-003.md` is corrected. |
+| 18 | 795 compute dispatches a frame; the batch is cut about 614 times. | Queued. Large; about 0.5 ms of GPU time at best. |
+| 19 | The texture upload cache keeps one entry: its eviction loop throws out everything before the insert position. | Being fixed 2026-10-13. |
+| 20 | Texture bytes are copied five times across three threads, vertex packets twice. | Queued. One redesign with 7 and 42. |
+| 21 | Main thread: per-primitive overheads and clock reads, 1 to 2% of the thread. | Queued. |
+| 22 | 96 MB of the page's 307 MB is two rings and the cache copy; a ring can wait for ever on an oversized message. | Being fixed 2026-10-13. |
+| 23 | The disc chunk cache fills to 64 MB and takes the heap past 256 MB. | Being fixed 2026-10-13 (planner). |
+| 24 | 112 MB is reserved for two rings and three stacks that need a few MB. | Being fixed 2026-10-13. |
+| 25 | 22.0 MB of the 24.9 MB wasm is 225 unit functions; cold units at `-Oz` would cut 3 to 4.6 MB. | Queued. |
+| 26 | The page downloads the game executable a second time as `ps2web.data`. | Queued. |
+| 27 | The mostly-zero entry tables cost 1.85 MB of memory and 18,402 data segments. | Queued. Needs a regeneration. |
+| 28 | The hook check costs 0.20 MB and the budget bookkeeping about 2 MB of unit code; neither is worth removing. | Nothing to change. Recorded here and in `harness-log-003.md` so the question is not reopened (row 13). |
+| 29 | 176 MB of the 256 MB start size is three fixed reservations; memory grows once in every race load. | Being fixed 2026-10-13 (planner). |
+| 30 | Main thread: about 7% of its time is waking for single queue entries and reading the clock. | Queued. Overlaps 21; do not add the two. |
+| 31 | Every load downloads everything again and cannot reuse compiled code. | Queued. |
+| 32 | Input reaches the game only when a frame is presented; keys stay held when the window loses focus. | Queued. |
+| 33 | The open items were scattered over 20 documents. | Fixed 2026-10-13: this file. |
+| 34 | `gap-009` quotes three instructions of the game's VU microcode. | Ruled by Mark 2026-10-13: game data that is code, or too hard to remake, may be in the repo. The listing stays; no gate rule. |
+| 35 | Stale statements in `FORK.md`, the gap logs, `README.md` and two tools. | Fixed 2026-10-13, except three lines in files other agents held: `gap-009`:62 and 70, `audio-log-002.md`:57, `tools/build-web.sh`:27. |
+| 36 | Gap 001's open question: the 12 seeded-only units. | Closed 2026-10-13 in `gap-001` (row 23). |
+| 37 | The generated hook check is absent for functions the recompiler knows only from an address constant or a single data pointer: 2 of the 19 hooked functions. | Being fixed 2026-10-13. |
+| 38 | Shadow mode files FPU status differences under "scratch" and does not compare VU0 state, `hi1`/`lo1` or `sa`. | Being fixed 2026-10-13. |
+| 39 | In the page a PATH3 packet released by MSKPATH3 reaches the GS after the rest of the VIF1 chunk that released it. | Queued. No visible effect today. |
+| 40 | The SPU2 final mix can overflow 32 bits before the master volume. | Being fixed 2026-10-13. The same defect as 11. |
+| 41 | The PATH3 hold buffer has no bound, and a full drain is posted as one ring message. | Being fixed 2026-10-13. |
+| 42 | In the page PATH3 data is copied three times, not two as `web-log-003.md` says (row 15). | Queued. |
+| 43 | A cheaper exact adder exists for the JIT: 23 SIMD instructions instead of 35. | Queued, with 0 (row 3). |
+| 44 | VIF1 on the VU thread: 4% in the command loop; 58% of 35,000 commands a frame are NOPs. | Queued. |
+| 45 | The JIT's Q and P latency model ignores register jumps (JR, JALR). | Queued. No effect on Burnout 3: none of its 34 VU programs can take the path. |
+
+Not looked at by the audit, by its own account: the IPU (the training video), `sif.cpp`, the CPU rasteriser, the recompiler's front end, the threaded configuration as a whole (no test starts the render or VU thread), every phase but one 12.6 s stretch of race, GPU time, other machines and browsers, and the memory card's flush when the page closes.

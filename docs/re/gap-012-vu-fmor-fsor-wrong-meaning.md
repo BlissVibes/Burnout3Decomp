@@ -103,3 +103,9 @@ Fixed in the fork: commit `76eb759` on `burnout3` ("vu: FMOR and FSOR OR the fla
 - The row of red crosses is still drawn (12600 and 13450 with the change). reB3 identifies it as world geometry: road-closed boards (`Barrier` material of the static chevron group) at side-street mouths, drawn last, with the ordinary depth test. Whether ours are hidden correctly by nearer geometry is not checked yet.
 - White-outs of the 3D view at 13350 and 13800, and a blue wash at 12900. reB3 says retail changes no post-processing on a slam, crash or takedown, and that the composite is additive and over unity by design, so a wrong blur strength would do this.
 - The strength of the blur and the boost bar. reB3's reading of the boost bar is that an empty bar is a strip of tyre-tread blocks, so the dotted strip is probably right.
+
+Later (2026-10-13):
+
+- The white-outs and the wash at 12900 are closed: they were gap 013, the VU adder's rounding, not the blur (`docs/re/gap-013-vu-adder-host-rounding.md`). The crosses seen through a shop front at 12900 were ghosts in that haze. Whether the boards are hidden correctly by nearer geometry is still not checked, and the strength of the blur still needs a frame from a console.
+- "Guard" above says the interpreter does not build alone. It does: `runtime/src/vu_micro.cpp` compiles by itself with clang++ and leaves 16 runtime symbols to stub (audit of 2026-10-13), which is what `tests/runtime` already does for the GIF module. Tests of the interpreters are being added on that basis.
+- The guard no longer needs `B3_VURECOMP`: without it the test takes `~/b3/ps2-web-recomp/build/tools/vurecomp`, the binary `tools/port.sh` uses.

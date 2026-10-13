@@ -1,12 +1,17 @@
 """The fork's recompiler puts the hook check where a function is entered, and nowhere else.
 
 Runs the fork's `eerecomp` on a made-up three-function program and reads the generated C++.
-Needs the tool: set B3_EERECOMP to its path (for example ~/b3/ps2-web-recomp/build/native-burnout3/eerecomp);
-skipped without it.
+Needs the tool: B3_EERECOMP names it; without the variable it is the one tools/port.sh translates the game
+with, ~/b3/ps2-web-recomp/build/tools/eerecomp (tests/fork_tools.py). Skipped when neither exists.
 """
-import os, re, struct, subprocess, tempfile, unittest
+import importlib.util, os, re, struct, subprocess, tempfile, unittest
 
-EERECOMP = os.environ.get('B3_EERECOMP')
+HERE = os.path.dirname(os.path.abspath(__file__))
+spec = importlib.util.spec_from_file_location('fork_tools', os.path.join(HERE, 'fork_tools.py'))
+fork_tools = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(fork_tools)
+
+EERECOMP = fork_tools.find('B3_EERECOMP', 'eerecomp')
 BASE = 0x00100000
 
 NOP = 0x00000000
@@ -42,7 +47,7 @@ def elf():
     return (header + segment).ljust(offset, b'\0') + code
 
 
-@unittest.skipUnless(EERECOMP, 'B3_EERECOMP is not set')
+@unittest.skipUnless(EERECOMP, fork_tools.missing('B3_EERECOMP', 'eerecomp'))
 class HookCheckTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

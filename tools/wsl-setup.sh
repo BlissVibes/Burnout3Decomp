@@ -4,6 +4,8 @@
 set -euo pipefail
 
 FORK_URL="https://github.com/BlissVibes/ps2-web-recomp.git"
+# Branch burnout3 is not on GitHub yet (2026-10-13), so the clone below fails on a new machine.
+# Until it is pushed, restore the fork from the bundle named in external/FORK.md.
 FORK_BRANCH="burnout3"
 B3="$HOME/b3"
 FORK="$B3/ps2-web-recomp"

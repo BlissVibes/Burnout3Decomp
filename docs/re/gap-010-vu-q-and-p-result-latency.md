@@ -68,3 +68,9 @@ Not investigated, and each needs a look at the real game before it is called a f
 ## Status
 
 Fixed in the worktree `~/b3/ps2-gs008`, uncommitted, one file; also saved as `~/b3/out/gap008/gap010-vu-latency.patch`. Built binary: `build/gs008/ps2run-gap010`.
+
+Later (2026-10-13):
+
+- Committed on `burnout3` as `82584e5`.
+- "Not covered", the WebAssembly VU JIT: closed by fork commit `547315b`, which models the delay in the JIT (`docs/re/web-log-001.md`). `vurecomp` still delivers Q and P at once; no program is compiled with it for this game.
+- "What still looks wrong in the race": the CRASHED! banner, the 4205 mph readout and the crash camera were gap 012 (`docs/re/gap-012-vu-fmor-fsor-wrong-meaning.md`); the white-out was gap 013 (`docs/re/gap-013-vu-adder-host-rounding.md`); the red crosses and the dotted boost bar are as the game intends, by reB3's reading. Only the strength of the blur is still open: it needs a frame from a console to judge. The current list is `docs/re/open-issues.md`.

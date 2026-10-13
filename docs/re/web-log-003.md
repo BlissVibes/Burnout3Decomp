@@ -31,7 +31,9 @@ Native, the pre-race state (`~/b3/out/run011/pre-race.state`, frame 12300) to fr
 
 293,972,893 turns were skipped.
 
-The frames dumped every 50 frames differed between the two runs in 32 of 36 files. That is not the change: two runs of the same build with the same options differ in the same way (6 of 8 dumped frames, identical cycles and primitives). The frame dump is taken from the render thread and is not repeatable between runs, so it cannot be used as an equality check. Cycles, primitives and audio are.
+The frames dumped every 50 frames differed between the two runs in 32 of 36 files. That is not the change: two runs of the same build with the same options differ in the same way (6 of 8 dumped frames, identical cycles and primitives). The frame dump is not repeatable between runs, so it cannot be used as an equality check. Cycles, primitives and audio are.
+
+Correction, same day (audit): the native program has no render thread, so the dump races nothing on the CPU side. The differing pixels are one 5-bit colour step in 5 to 24% of the picture, more towards the corners, which is the shape of the game's speed blur. The blur samples the frame buffer it is drawing into, and the GPU rasteriser does not isolate a primitive that reads its own target, so within one dispatch a pixel may read a neighbour before or after it is written. That is the likely cause; it has not been traced to the primitive. It does not reach the game (cycles and primitives agree). PCSX2's entry for this game sets its auto-flush fix for the same blur.
 
 ## 2. The PATH3 hold buffer (most of the GIF 12%)
 

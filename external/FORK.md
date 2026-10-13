@@ -2,7 +2,18 @@
 
 - Upstream: https://github.com/snuri00/ps2-web-recomp (MIT, (c) 2026 Samir Nuri)
 - Our fork: https://github.com/BlissVibes/ps2-web-recomp, branch `burnout3`
-- Pinned commit: `17a5eee43eb013d43f26ace6dbff5139e5e8043c` (upstream `17a5eee43eb013d43f26ace6dbff5139e5e8043c`, 2026-10-10)
+- Pinned commit: `17a5eee43eb013d43f26ace6dbff5139e5e8043c` (upstream `17a5eee43eb013d43f26ace6dbff5139e5e8043c`, 2026-10-10).
+  This is the upstream commit our changes sit on, not the commit a build needs.
+- Fork head: `a854891` on 2026-10-13, 26 commits on the pinned one. A build needs this commit.
+  `git -C ~/b3/ps2-web-recomp log --oneline 17a5eee..burnout3` lists them and is right when this line is stale.
+- Not pushed (checked 2026-10-13 with `git ls-remote --heads origin`). GitHub has only `main` at `17a5eee`
+  for the fork: branch `burnout3` exists in the local clone alone, and the clone in `tools/wsl-setup.sh`
+  fails on any other machine. This repo's 64 commits after its first (`130c60b`), up to `a6580e6`, are
+  not pushed either. A push needs Mark's yes.
+- Backups, made 2026-10-13, on the Windows disk outside both repos:
+  `C:/Users/Mark/Documents/_vibe coding projects/_backups/burnout3/ps2-web-recomp-burnout3-a854891.bundle`
+  (branch `burnout3`) and `Burnout3Decomp-main-a6580e6.bundle` (branch `main`). They are git bundles:
+  `git clone -b burnout3 <bundle> ~/b3/ps2-web-recomp` restores the fork.
 - Local clone (WSL): `~/b3/ps2-web-recomp`
 
 Why not a submodule: the fork's `port.sh` writes `games/`, `generated/` and `build/`
@@ -19,27 +30,31 @@ so the fork lives outside the repo and is pinned here instead.
 - `cmake: PS2_WEB_SHELL lets a port supply its own shell page`: `CMakeLists.txt` gains a
   `PS2_WEB_SHELL` cache variable (default: the fork's own `web/shell.html`) used for
   `--shell-file` and the link dependency. `tools/build-web.sh` points it at this repo's shell.
+  Commit `414c116`.
 - `analysis: seed functions from pointer tables in data`: `recomp/analysis.cpp` gains
   `pointer_tables()`; eerecomp now translates functions reached only through a table of four
-  or more code pointers (static constructor lists, vtables). See
+  or more code pointers (static constructor lists, vtables). Commit `0797e31`. See
   `docs/re/gap-001-static-constructor-table.md`.
 - `hw: deliver INTC interrupts after a short latency so status polls can see the bit`:
   `runtime/src/hw.cpp`, `hw.hpp`, `system.cpp`. An INTC line that rises while enabled is
   delivered 32 EE cycles later, so a tight poll of INTC_STAT (libgraph's `sceGsSyncV`) sees
   the bit before the kernel acknowledges it. State version 2 → 3. This is a behaviour change
   for every game: when offering it upstream, ask for a run against GT4 and God of War II,
-  which could not be tested here. See `docs/re/gap-002-vblank-poll-interrupt-latency.md`.
+  which could not be tested here. Commit `07c4fb7`. See
+  `docs/re/gap-002-vblank-poll-interrupt-latency.md`.
 - `codegen: remove stale unit files before writing`: `recomp/codegen.cpp`. eerecomp deletes
   `unit_*.cpp` files in its output directory that the current pass did not emit; the build
   globs that directory, and leftovers from a pass with more units broke the compile.
+  Commit `15b4c42`.
 - `gif: reflect VIF1 MSKPATH3 and GIF_MODE in GIF_STAT`: `runtime/src/gs/gif.cpp`, `gif.hpp`,
   `runtime/src/vif.cpp`. VIF1 code 0x06 now sets a PATH3 mask flag that reads back as
   GIF_STAT bit 1, and GIF_MODE bits 0 and 2 are mirrored into GIF_STAT. PATH3 transfers are
-  not actually stalled while masked. See `docs/re/gap-003-gif-status-path3-mask.md`.
+  not actually stalled while masked. Commit `6862f7b`. See
+  `docs/re/gap-003-gif-status-path3-mask.md`.
 - `gif: hold PATH3 while masked and report the FIFO count`: `runtime/src/gs/gif.cpp`,
   `runtime/src/vif.cpp`. PATH3 data that arrives while PATH3 is masked is held and forwarded
   when the mask clears; GIF_STAT reports the held amount as the FIFO count (capped at 16) and
-  the P3Q bit. Only the EE pass of the VIF1 stream changes the mask. See
+  the P3Q bit. Only the EE pass of the VIF1 stream changes the mask. Commit `8aca713`. See
   `docs/re/gap-004-path3-stall-and-gif-fifo.md`.
 - `kernel: Deci2Call send requests fail like a retail console without a host`:
   `runtime/src/kernel.cpp`. Syscall 0x7C sub-commands 3 (ReqSend) and 7 (ExReqSend) return -1,
@@ -58,7 +73,7 @@ so the fork lives outside the repo and is pinned here instead.
   `ps2web_fetch` reads each disc chunk with `Module.discFile.slice(...).arrayBuffer()` when the
   page has set `Module.discFile` (a `File`), and falls back to the Range request on
   `Module.discUrl` otherwise. This repo's shell sets it from the picked ISO or the cached copy,
-  so the server never holds the disc.
+  so the server never holds the disc. Commit `bbb10d4`.
 - `spu2: write the mixer output areas every sample and test IRQA against them (RWA's IRQ
   clock)`: `runtime/src/iop/spu2.cpp`, `runtime/src/system.cpp`. Each 32-sample mixer batch
   now stores voice 1 and voice 3, the dry and wet L/R mixes (wet as silence, reverb is not
@@ -98,8 +113,8 @@ so the fork lives outside the repo and is pinned here instead.
   VU JIT emits the same order). MAX, MINI and the EE's `max.s`/`min.s` return one operand
   untouched, chosen by comparing the bit patterns as sign-magnitude integers, so a denormal
   (an integer moved through a float register with `MAXi vf0, I`) survives and -0 orders below
-  +0. This is a behaviour change for every game; the JIT path has only been compiled natively
-  so far and needs one browser run. State version stays 4. Commit `1334998`. See
+  +0. This is a behaviour change for every game; the JIT path ran in Chrome on 2026-10-12
+  (`docs/re/web-log-001.md`). State version stays 4. Commit `1334998`. See
   `docs/re/gap-009-vu-max-mini-flushed-denormals.md`.
 - `vu: Q and P results appear after their latency in the interpreters (cycle-scheduled programs)`:
   `runtime/src/vu_micro.cpp`. In both VU interpreter loops the result of DIV, SQRT and RSQRT (Q)

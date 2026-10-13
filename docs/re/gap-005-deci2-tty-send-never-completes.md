@@ -46,3 +46,4 @@ Applied exactly as written (the `0x7C` case in `runtime/src/kernel.cpp`, 9 lines
 ## Status
 
 - Applied in the fork on branch `burnout3` by Opus 1 and verified by runs 007 and 008. Uncommitted; commit message `kernel: Deci2Call send requests fail like a retail console without a host`.
+- Later: committed as `0995576`.

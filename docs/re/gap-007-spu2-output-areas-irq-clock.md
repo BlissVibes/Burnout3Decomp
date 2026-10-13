@@ -247,5 +247,6 @@ Applied exactly as written, with no change to the spec code; the git diff was ch
 ## Status
 
 - Applied in the fork on branch `burnout3` (on top of `bbb10d4`) by the workflow implementer and verified by run 009. Commit `3e42c71` (`git status --short`: ` M runtime/src/iop/spu2.cpp`, ` M runtime/src/system.cpp`; 57 insertions, 6 deletions). Proposed commit message `spu2: write the mixer output areas every sample and test IRQA against them (RWA's IRQ clock)`.
+- Later: `3e42c71` carries that message; it is committed, not proposed.
 - State version 3 → 4: every existing save state becomes unloadable.
 - References used (knowledge only, no code copied): PCSX2, BurnoutDominatorReversed, Play!, ps2sdk; see `docs/research/PROVENANCE.md`.

@@ -82,3 +82,5 @@ All outputs are under `~/b3/out/gap008/`.
 ## Status
 
 Fixed in the worktree `~/b3/ps2-gs008` (branch `gap008`), uncommitted; the three files of this gap are also saved as `~/b3/out/gap008/gap008-path3.patch` so that it can be committed apart from gap 009.
+
+Later: committed on `burnout3` as `c7abe06`.

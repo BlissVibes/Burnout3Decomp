@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Recompiles Burnout 3 with the fork's port.sh and scans the exploring run's log.
+# The fork's recompilers (build/tools/eerecomp, vurecomp) are brought up to date first.
 # Run inside WSL. Optional args are passed through to the fork's port.sh
 # (for example --frames 1800 --press 300:start --press 900:cross).
 # Two limits guard each exploring run (tools/watch-run.py kills ps2run when one is passed):
@@ -22,6 +23,15 @@ python3 "$REPO/tools/verify-iso.py" "$ISO"
 export PS2_GPU_FALLBACK=1
 FRAMES=3600
 if [ "${1:-}" = "--frames" ]; then FRAMES="$2"; shift 2; fi
+
+# The fork's port.sh builds eerecomp and vurecomp only when they are missing, so after a change
+# to the recompiler it would translate with the old ones and nothing would fail. Bring them up to
+# date first; this does nothing when they are current. A fork with no build/tools yet is left to
+# its own port.sh, which runs its setup.sh.
+if [ -f "$FORK/build/tools/CMakeCache.txt" ]; then
+  cmake --build "$FORK/build/tools" --target eerecomp vurecomp
+fi
+
 cd "$FORK"
 mkdir -p "$HOME/b3/out"
 STAMP="$(date +%Y%m%d-%H%M%S)"

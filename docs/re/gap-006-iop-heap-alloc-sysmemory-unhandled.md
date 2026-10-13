@@ -267,4 +267,5 @@ Applied exactly as written (all three parts; `g_kernel_writes_reported` sits wit
 ## Status
 
 - Applied in the fork on branch `burnout3` by the workflow implementer and verified by run 008. Uncommitted (`git status`: `M runtime/src/iop/cpu.cpp`, `kernel.cpp`, `kernel.hpp`, `libs.cpp`, `sif.cpp`; 6 files with the gap 005 change, 91 insertions, 16 deletions). Proposed commit message `iop: implement the IOP heap service (AllocSysMemory, LoadIopHeap, block queries) and end a guest call on a fault`.
+- Later: committed as `fca7bf4`.
 - References used for the method table (knowledge only, no code copied): ps2sdk, wavelength, Play!, Tenkaichi3Decomp; see `docs/research/PROVENANCE.md`.

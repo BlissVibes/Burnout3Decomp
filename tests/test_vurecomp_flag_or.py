@@ -5,13 +5,18 @@ FCOR sets vi1 to 1 if the clip flags ORed with a 24-bit immediate are all ones, 
 
 Runs the fork's `vurecomp` on a made-up five-instruction program and reads the generated C++
 (the generated code keeps the integer registers a program uses in locals named i<n>).
-Needs the tool: set B3_VURECOMP to its path (for example ~/b3/ps2-web-recomp/build/native-burnout3/vurecomp);
-skipped without it. The interpreter and the WebAssembly JIT have the same three instructions and are not
-covered here.
+Needs the tool: B3_VURECOMP names it; without the variable it is the one tools/port.sh compiles recorded
+programs with, ~/b3/ps2-web-recomp/build/tools/vurecomp (tests/fork_tools.py). Skipped when neither exists.
+The interpreter and the WebAssembly JIT have the same three instructions and are not covered here.
 """
-import os, struct, subprocess, tempfile, unittest
+import importlib.util, os, struct, subprocess, tempfile, unittest
 
-VURECOMP = os.environ.get('B3_VURECOMP')
+HERE = os.path.dirname(os.path.abspath(__file__))
+spec = importlib.util.spec_from_file_location('fork_tools', os.path.join(HERE, 'fork_tools.py'))
+fork_tools = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(fork_tools)
+
+VURECOMP = fork_tools.find('B3_VURECOMP', 'vurecomp')
 
 UPPER_NOP = 0x000002FF
 UPPER_NOP_END = 0x400002FF       # E bit: the program ends after the next instruction
@@ -51,7 +56,7 @@ def program_key(entry):
     return h
 
 
-@unittest.skipUnless(VURECOMP, 'B3_VURECOMP is not set')
+@unittest.skipUnless(VURECOMP, fork_tools.missing('B3_VURECOMP', 'vurecomp'))
 class FlagOrTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

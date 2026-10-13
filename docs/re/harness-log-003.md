@@ -101,3 +101,9 @@ All eighteen functions of the two decomp logs were run again on race02 with the 
 - Hooks are not enabled in the browser page.
 - `--snapshot-on-entry` (Part 5 of the spec) is still not wired to a command-line option.
 - All of this was measured on the race as it was before gap 012.
+
+Later (2026-10-13):
+
+- "The page has not been run since": it has. The page with the check ran the corrected race at 60.0 fps (`docs/re/web-log-002.md`, fork b2c8a15) and again at a854891 (`docs/re/web-log-003.md`). The cost of the check on its own is still not timed in the page; the audit of 2026-10-13 sized it at 0.20 MB of code (6,113 sites of about 33 bytes).
+- The last line above is out of date: the shadow comparison and the snapshot tests were rerun on the corrected race (the two sections before "Tests").
+- `tests/test_recomp_hook_check.py` no longer needs `B3_EERECOMP`: without it the test takes `~/b3/ps2-web-recomp/build/tools/eerecomp`, the binary `tools/port.sh` translates with. That binary dated from 2026-10-10 and failed two of the three tests until it was rebuilt today; `tools/port.sh` now brings both recompilers up to date before the fork's script runs.
