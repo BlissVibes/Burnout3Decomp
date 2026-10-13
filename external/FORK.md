@@ -107,7 +107,14 @@ so the fork lives outside the repo and is pinned here instead.
   instruction that started it (7, 7 and 13 for Q; 11 to 54 for P), at once on WAITQ/WAITP, at
   program end, or when another operation of the same kind starts. Programs scheduled around the
   latency (a read of the old Q or P inside the window) now get the old value, as on hardware.
-  Counted in instructions: pipeline stalls are not modelled. The WebAssembly VU JIT and
-  vurecomp still deliver Q and P at once. State version stays 4. Commit `82584e5`. See
+  Counted in instructions: pipeline stalls are not modelled. vurecomp still delivers Q and P at once (the WebAssembly VU JIT follows in the next entry). State version stays 4. Commit `82584e5`. See
   `docs/re/gap-010-vu-q-and-p-result-latency.md`.
+- `vu jit: Q and P results appear after their latency in programs that read them early`:
+  `runtime/src/vu_jit.cpp`. In programs that can read Q or P inside a latency window the
+  WebAssembly VU JIT keeps a produced result in a wasm local with a countdown and delivers it
+  when the countdown ends, on WAITQ/WAITP, when another operation of the same kind starts, and
+  on every exit to the interpreter or return; other programs are generated as before. Falling
+  back to the interpreter was rejected: 27 of 61 VU1 programs seen in a race read early. Costs
+  1 to 4 points of VU-thread idle time in the race, no frame rate. Native output is unchanged
+  (the JIT is not used natively). Commit `547315b`. See `docs/re/web-log-001.md`.
 
