@@ -3,9 +3,9 @@
 # Output: ~/b3/out/web (outside the repo on purpose: it contains the game's code).
 set -euo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
-FORK="$HOME/b3/ps2-web-recomp"
+FORK="${FORK:-$HOME/b3/ps2-web-recomp}"   # another checkout of the fork: FORK=... OUT=... tools/build-web.sh
 NAME=burnout3
-OUT="$HOME/b3/out/web"
+OUT="${OUT:-$HOME/b3/out/web}"
 EMSDK="${EMSDK:-$FORK/tools/emsdk}"
 
 boot=$(sed -n 's/^BOOT2 *= *//p' "$FORK/games/$NAME/disc/SYSTEM.CNF" | tr -d '\r')

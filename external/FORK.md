@@ -4,7 +4,7 @@
 - Our fork: https://github.com/BlissVibes/ps2-web-recomp, branch `burnout3`
 - Pinned commit: `17a5eee43eb013d43f26ace6dbff5139e5e8043c` (upstream `17a5eee43eb013d43f26ace6dbff5139e5e8043c`, 2026-10-10).
   This is the upstream commit our changes sit on, not the commit a build needs.
-- Fork head: `9431274` on 2026-10-13, 35 commits on the pinned one. A build needs this commit.
+- Fork head: `dbadb67` on 2026-10-14, 40 commits on the pinned one. A build needs this commit.
   `git -C ~/b3/ps2-web-recomp log --oneline 17a5eee..burnout3` lists them and is right when this line is stale.
 - Not pushed (checked 2026-10-13 with `git ls-remote --heads origin`). GitHub has only `main` at `17a5eee`
   for the fork: branch `burnout3` exists in the local clone alone, and the clone in `tools/wsl-setup.sh`
@@ -283,3 +283,24 @@ so the fork lives outside the repo and is pinned here instead.
   `ps2web_heap_top` exported; `PS2_WEB_ELF_FROM_DISC` (off) reads the executable from the disc.
   Commit `9431274`. Tests `tests/runtime/test_disc_cache.cpp`, `test_web_pace.cpp`,
   `test_web_sha256.cpp`, `tests/pad.test.mjs`, `tests/page.test.mjs`.
+- The audit's second round (2026-10-14), made on branches `jit01` and `gsx01` and picked onto `burnout3`:
+  - `vu: the fast paths' exact add has no hole at the top of the range`: `runtime/include/ps2/vu_ops.hpp`
+    (and a comment in `vu_exact.hpp`). An operand of magnitude `0x7F7FFFFF` overflowed inside the
+    two-sum; operands at 2^125 or more only. Commit `ec3fe90`. Test `tests/unit/test_vu_adder.cpp`.
+  - `vu jit: constants in locals, SUB/MADD/MSUB exact, FTOI/ITOF/CLIP/OPMULA/OPMSUB inline, Q and P
+    across a subroutine return`: `runtime/src/vu_jit.cpp`, `vu_jit.hpp`, `vu_jit_web.cpp`. Behaviour
+    change for every game in the page (gap 013's rule now covers the whole adder in the JIT).
+    `PS2_VU_JIT_OFF=consts,exact,inline` turns the parts off. Commit `e9f1aac`. Test
+    `tests/runtime/test_vu1_jit.cpp` (run through the JIT by `tests/wasm/run.sh`).
+  - `vif: runs of NOPs are passed over at once; STMOD 1 unpacks take the fast path`:
+    `runtime/src/vif.cpp`. Same results. Commit `6b51c05`. Test `tests/runtime/test_vif_unpack.cpp`.
+  - `gpu: a primitive that samples the memory it draws into reads it as it was before`:
+    `runtime/src/gs/gpu/gpu.cpp`, `gs.wgsl`. Behaviour change for every game on the GPU path (the
+    blur reads strictly the old memory, as PCSX2's hardware renderer does); GPU frames are now
+    repeatable. `PS2_NO_FEEDBACK_COPY=1` turns it off. Commit `01ecfae`.
+  - `gs queue, vif: GIF data written into the ring and sent in batches; PATH3 released in order in the
+    page; XGKICK without a gather copy`: `runtime/src/gs/queue.*`, `gif.*`, `gs.cpp`,
+    `runtime/src/system.cpp`, `system.hpp`, `vif.*`, `vu_micro.cpp`, `host/web.cpp`. The reader now
+    sleeps on its waiting flag, which ends the lost wakes of `4c108df`. Page only, except the
+    XGKICK path. `PS2_RING_EACH=1` posts each piece on its own. Commit `dbadb67`. Tests
+    `tests/runtime/test_gs_ring.cpp`, `test_vif_path3_order.cpp`.

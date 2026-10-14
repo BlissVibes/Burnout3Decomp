@@ -4,12 +4,14 @@
 #
 # usage: tests/wasm/run.sh <fork path> [build dir]
 #
-# The tests are tests/unit/test_vu_exact.cpp (the arithmetic on host floats against the integer model) and
-# tests/runtime/test_vu0_loop.cpp (the fast VU0 loop against the exact one), built from the same sources as
-# tests/unit/run.sh and tests/runtime/run.sh build them, a runtime test with the fork sources it names on
-# its "// fork-source:" lines. The compiler and node are the fork's own, in <fork>/tools/emsdk.
+# The tests are tests/unit/test_vu_exact.cpp (the arithmetic on host floats against the integer model),
+# tests/runtime/test_vu0_loop.cpp (the fast VU0 loop against the exact one) and tests/runtime/test_vu1_jit.cpp
+# (the VU1 JIT, which exists only in WebAssembly, against the fast interpreter's arithmetic), built from the
+# same sources as tests/unit/run.sh and tests/runtime/run.sh build them, a runtime test with the fork sources
+# it names on its "// fork-source:" lines. The compiler and node are the fork's own, in <fork>/tools/emsdk.
 #
-# Each test is built twice:
+# Each test is built twice, unless a line "// wasm-builds: page" (or plain) names the one it runs in; a line
+# "// wasm-link: ..." gives link flags of its own:
 #   plain  -O3 -msimd128, a multiply never fused into an add; main() on node's main thread.
 #   page   with the compile flags the fork gives the page, read from its CMakeLists.txt (what it adds for
 #          every host and for emscripten: threads, tail calls, WebAssembly exceptions), and main() on a
@@ -88,9 +90,15 @@ Module.preRun = [() => {
 }];
 EOF
 
-for source in "$tests/unit/test_vu_exact.cpp" "$tests/runtime/test_vu0_loop.cpp"; do
+for source in "$tests/unit/test_vu_exact.cpp" "$tests/runtime/test_vu0_loop.cpp" "$tests/runtime/test_vu1_jit.cpp"; do
     name=$(basename "$source" .cpp)
     flags=(-Wall -Wextra ${CXXFLAGS:-} -I "$fork/runtime/include" -I "$tests/unit")
+    # A test may name the builds it runs in ("// wasm-builds: page" for code that needs the page's threads)
+    # and link flags of its own ("// wasm-link: ...").
+    kinds=$(sed -n 's|^// wasm-builds: *||p' "$source" | tr -d '\r')
+    kinds=${kinds:-plain page}
+    # shellcheck disable=SC2207
+    link=($(sed -n 's|^// wasm-link: *||p' "$source" | tr -d '\r'))
     sources=()
     while read -r path; do
         [ -n "$path" ] || continue
@@ -113,13 +121,14 @@ for source in "$tests/unit/test_vu_exact.cpp" "$tests/runtime/test_vu0_loop.cpp"
         continue
     fi
 
-    for kind in plain page; do
+    for kind in $kinds; do
         if [ "$kind" = plain ]; then
             how=(-std=c++20 -O3 -ffp-contract=off -msimd128 -sENVIRONMENT=node)
         else
             # shellcheck disable=SC2206
             how=($page_flags -sENVIRONMENT=node,worker -sPROXY_TO_PTHREAD -sEXIT_RUNTIME=1 -sEXPORTED_RUNTIME_METHODS=ENV --pre-js "$build/environment.js")
         fi
+        how+=("${link[@]}")
         js="$build/$name.$kind.js"
         out="$build/$name.$kind.txt"
         if ! "$empp" "${how[@]}" "${flags[@]}" "$source" "${sources[@]}" -o "$js"; then
