@@ -4,7 +4,7 @@
 - Our fork: https://github.com/BlissVibes/ps2-web-recomp, branch `burnout3`
 - Pinned commit: `17a5eee43eb013d43f26ace6dbff5139e5e8043c` (upstream `17a5eee43eb013d43f26ace6dbff5139e5e8043c`, 2026-10-10).
   This is the upstream commit our changes sit on, not the commit a build needs.
-- Fork head: `a854891` on 2026-10-13, 26 commits on the pinned one. A build needs this commit.
+- Fork head: `9431274` on 2026-10-13, 35 commits on the pinned one. A build needs this commit.
   `git -C ~/b3/ps2-web-recomp log --oneline 17a5eee..burnout3` lists them and is right when this line is stale.
 - Not pushed (checked 2026-10-13 with `git ls-remote --heads origin`). GitHub has only `main` at `17a5eee`
   for the fork: branch `burnout3` exists in the local clone alone, and the clone in `tools/wsl-setup.sh`
@@ -12,7 +12,8 @@
   not pushed either. A push needs Mark's yes.
 - Backups, made 2026-10-13, on the Windows disk outside both repos:
   `C:/Users/Mark/Documents/_vibe coding projects/_backups/burnout3/ps2-web-recomp-burnout3-a854891.bundle`
-  (branch `burnout3`) and `Burnout3Decomp-main-a6580e6.bundle` (branch `main`). They are git bundles:
+  (branch `burnout3`) and `Burnout3Decomp-main-a6580e6.bundle` (branch `main`), both older than the heads
+  above. They are git bundles:
   `git clone -b burnout3 <bundle> ~/b3/ps2-web-recomp` restores the fork.
 - Local clone (WSL): `~/b3/ps2-web-recomp`
 
@@ -237,3 +238,48 @@ so the fork lives outside the repo and is pinned here instead.
   identical cycles, primitives and audio; with the hold buffer change the page's emulation
   thread does 23% less work in the race. Commit `a854891`. Same doc; test
   `tests/runtime/test_dispatch_idle.cpp`.
+- `vu0: a fast loop over decoded instructions with exact arithmetic from host floats`:
+  `runtime/src/vu_micro.cpp`, `vu_micro.hpp`, `runtime/include/ps2/vu_exact.hpp`, `memory.cpp`,
+  `system.cpp`, `CMakeLists.txt`. VU0 microprograms ran through the exact loop (decode every time,
+  integer float routines). The new loop runs decoded images kept by content and takes its arithmetic
+  from `vu_exact.hpp` (product exact in double and cut as the VU cuts it, sum from a two-sum with a
+  one-unit correction, undecidable lanes to the integer routine); flags, latency and order are the
+  exact loop's code. `PS2_VU0_EXACT=1` keeps the old loop, `PS2_VU0_CHECK=1` runs both and compares.
+  `-ffp-contract=off` for every target. No behaviour change (proven on every call of a race).
+  Native 24.4 to 10.2 ns an instruction; the page saves 3.9 ms a frame. Commit `d9ae500`. See
+  `docs/re/web-log-004.md`; tests `tests/unit/test_vu_exact.cpp`, `tests/runtime/test_vu0_loop.cpp`,
+  `tests/wasm/run.sh`.
+- The audit of 2026-10-13 (`docs/re/open-issues.md`), six fixes made on branch `fixes01` and picked
+  onto `burnout3`:
+  - `spu2: the mix is clamped before the master volume; exponential envelope steps round down;
+    cheaper reverb addresses`: `runtime/src/iop/spu2.cpp`, `spu2_work_area.hpp`. Behaviour change for
+    every game (clip level follows the master volume; exponential decays end); reverb output
+    bit-identical. Commit `1a07150`. Tests in `tests/runtime/test_spu2_mixer.cpp`, `test_spu2_reverb.cpp`.
+  - `hw: a late EE timer event no longer loses its compare or overflow`: `runtime/src/hw.cpp`.
+    Behaviour change for every game; Burnout 3's race to 14100 ends 9 cycles later. State layout
+    unchanged. Commit `d313391`. Test `tests/runtime/test_ee_timer.cpp`.
+  - `gs queue: a message of any size up to the ring's capacity gets through; GIF data is posted in
+    pieces; rings of 16 MiB`: `runtime/src/gs/queue.cpp`, `queue.hpp`, `gif.cpp`, `gs.cpp`,
+    `system.cpp`. Page only. Commit `46e093b`. Tests `tests/runtime/test_gs_ring.cpp`,
+    `test_gif_path3.cpp`.
+  - `gpu: the upload cache keeps more than one entry`: `runtime/src/gs/gpu/gpu.cpp`,
+    `upload_cache.hpp`. Commit `f0c99aa`. Test `tests/runtime/test_upload_cache.cpp`.
+  - `hooks: shadow mode compares hi1, lo1 and sa, and counts FPU status differences on their own`:
+    `runtime/src/hooks.cpp`. Commit `e543da1`. Test `tests/runtime/test_hooks.cpp`.
+  - `recomp: an entry known only from an address constant or a data word is a function when the code
+    before it returns`: `recomp/analysis.cpp`. Burnout 3: 6,113 functions become 7,932; takes effect
+    when the game is regenerated (not done yet). Commit `f79a015`. Test `tests/test_recomp_hook_check.py`.
+- `gs queue: a poster's wait for room ends after 2 ms; a dump of what each thread waits for`:
+  `runtime/src/gs/queue.cpp`, `queue.hpp`, `gs.cpp`, `gs.hpp`, `vif.cpp`, `vif.hpp`, `system.cpp`,
+  `runtime/include/ps2/system.hpp`. In the page a futex wake from the VU thread to the waiting poster
+  was lost and the emulation thread froze once the 16 MiB VU ring filled; the wait now also ends
+  after 2 ms (4 to 7 lost wakes a race are counted). `describe_threads()` prints what each thread
+  waits for. Page only. Commit `4c108df`. See `docs/re/web-log-004.md` section 7.
+- `web host: the disc cache never hands over another chunk; game pace independent of the display;
+  input on every refresh`: `host/web.cpp`, `host/disc_cache.*`, `host/pace.*`, `host/sha256.*`,
+  `CMakeLists.txt`. The disc cache could return the next chunk's 256 KB once full; pacing no longer
+  slows the game on displays under 60 Hz and survives a stalled audio device (`?pace=old` keeps the
+  old waits); held and disc time counted apart from idle; `ps2web_describe`, `ps2web_stack_used`,
+  `ps2web_heap_top` exported; `PS2_WEB_ELF_FROM_DISC` (off) reads the executable from the disc.
+  Commit `9431274`. Tests `tests/runtime/test_disc_cache.cpp`, `test_web_pace.cpp`,
+  `test_web_sha256.cpp`, `tests/pad.test.mjs`, `tests/page.test.mjs`.

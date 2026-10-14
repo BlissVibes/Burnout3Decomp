@@ -78,6 +78,15 @@ class AudioCheckTest(unittest.TestCase):
         samples[2000:2100, 0] = -32768
         self.assertAlmostEqual(audio_check.measure(samples, RATE)['clipped_share'], 300 / samples.size, places=9)
 
+    def test_clipping_under_a_master_volume_just_below_one_counts(self):
+        # The SPU2 clamps the mix and then applies the master volume; Burnout 3's is 0x3FFF, so its clipped
+        # samples sit at +32765 and -32766, not at the 16-bit limits.
+        samples = tone(1.0, amplitude=8000.0)
+        samples[1000:1100] = 32765
+        samples[2000:2100, 0] = -32766
+        samples[3000:3100] = 32764                       # one step lower is not clipping
+        self.assertAlmostEqual(audio_check.measure(samples, RATE)['clipped_share'], 300 / samples.size, places=9)
+
     def test_an_isolated_step_is_a_click_and_a_loud_tone_is_not(self):
         quiet = tone(1.0, frequency=200.0, amplitude=2000.0)
         quiet[RATE // 2:, 0] += 9000                     # one step in the left channel at 0.5 s

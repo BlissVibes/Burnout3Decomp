@@ -11,7 +11,8 @@
 # Include paths: <fork>/runtime/include, the directory of each named source, and tests/unit (check.hpp).
 #
 # Nothing is written inside the repository: programs go to the build dir
-# (default ${TMPDIR:-/tmp}/b3-runtime). CXX and CXXFLAGS are honoured.
+# (default ${TMPDIR:-/tmp}/b3-runtime). CXX and CXXFLAGS are honoured; without CXX the compiler is clang++
+# when it is installed, else c++. A test with a line "// needs-clang" is skipped under another compiler.
 # Exit 0 when everything built and passed, 1 otherwise, 2 for bad arguments.
 set -u
 
@@ -26,7 +27,15 @@ if [ ! -f "$fork/runtime/include/ps2/state.hpp" ]; then
     echo "no runtime headers at $fork/runtime/include" >&2
     exit 2
 fi
-cxx=${CXX:-c++}
+# The fork is built with clang and some of its sources only build with it, so clang++ is used when it is
+# installed and CXX does not say otherwise. A multiply is never fused into an add, as in the fork.
+if [ -n "${CXX:-}" ]; then
+    cxx=$CXX
+elif command -v clang++ > /dev/null 2>&1; then
+    cxx=clang++
+else
+    cxx=c++
+fi
 mkdir -p "$build" || exit 2
 passed=0
 failed=0
@@ -34,7 +43,13 @@ failed=0
 for source in "$here"/test_*.cpp; do
     [ -f "$source" ] || continue
     name=$(basename "$source" .cpp)
-    flags=(-std=c++20 -O1 -g -Wall -Wextra ${CXXFLAGS:-} -I "$fork/runtime/include" -I "$here/../unit")
+    # A fork source written with clang's vector builtins builds with clang only. A test of one says so on
+    # a line "// needs-clang" and is skipped, in words, under another compiler.
+    if grep -q '^// needs-clang' "$source" && ! "$cxx" --version 2> /dev/null | grep -qi clang; then
+        echo "$name: skipped (its fork source needs clang)"
+        continue
+    fi
+    flags=(-std=c++20 -O1 -g -Wall -Wextra -ffp-contract=off ${CXXFLAGS:-} -I "$fork/runtime/include" -I "$here/../unit")
     sources=()
     missing=0
     while read -r path; do

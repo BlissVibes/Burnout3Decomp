@@ -144,7 +144,9 @@ def measure(samples, rate, window_seconds=5.0, batch=0, offset=0.0):
     report['peak_dbfs'] = [dbfs(float(np.abs(wide[:, c]).max())) if frames else -120.0 for c in range(channels)]
     report['rms_dbfs'] = [dbfs(float(np.sqrt((wide[:, c] ** 2).mean()))) if frames else -120.0 for c in range(channels)]
     report['dc'] = [float(wide[:, c].mean()) if frames else 0.0 for c in range(channels)]
-    report['clipped_share'] = float((np.abs(samples.astype(np.int32)) >= 32767).mean()) if frames else 0.0
+    # At or within two steps of the 16-bit limits: the SPU2 clamps and then applies the master volume, so a
+    # game whose master volume is one step under full (0x3FFF) clips at +32765 and -32766.
+    report['clipped_share'] = float((np.abs(samples.astype(np.int32)) >= 32765).mean()) if frames else 0.0
     gaps = silent_gaps(samples, rate)
     report['silent_gaps'] = [(offset + s, n) for s, n in gaps]
     report['silent_share'] = sum(n for _, n in gaps) / (frames / rate) if frames else 0.0

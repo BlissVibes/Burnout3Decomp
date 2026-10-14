@@ -10,7 +10,7 @@ How to use it: close a row here in the commit that closes the item. The "Not don
 
 | # | Item | From | State today | Still matters? |
 |---|---|---|---|---|
-| 1 | The exact VU0 interpreter is 38% of the emulation thread. | `web-log-002.md`:57-63, `web-log-003.md`:105 | Open, in work: another workflow is changing the VU0 loop in the fork's main checkout today. | Yes. The largest cost on the fullest thread. |
+| 1 | The exact VU0 interpreter is 38% of the emulation thread. | `web-log-002.md`:57-63, `web-log-003.md`:105 | Closed 2026-10-13: fork `d9ae500`, VU0 on a fast exact loop; the page saves 3.9 ms a frame (`web-log-004.md`). | Yes. The largest cost on the fullest thread. |
 | 2 | The callers of VU0 entries `0x0138` and `0x0A18` (51% of VU0 instructions) are not identified. | `web-log-002.md`:52, 62 | Open. | Only for the hook route; not if row 1 succeeds. |
 | 3 | The VU JIT keeps host rounding for SUB, MADD and MSUB (MADD is 53% of the adder's use). | `gap-013`:50, 86; `FORK.md`, entry `f2f31d2` | Open. Waits for room on the VU thread; audit findings 0 and 43 would make room. | Accuracy only. No visible fault is known. |
 | 4 | The VU multiplier is the host's on every fast path. | `gap-013`:52-54 | Open. | Low. No effect has been seen. |
@@ -64,47 +64,47 @@ The audit kept 46 findings and refuted 2. The index is the audit's. "Being fixed
 | # | Finding | State |
 |---|---|---|
 | 0 | The VU JIT emits 6 to 9 `v128.const` per VU instruction and V8 rebuilds each at every use. Held in locals: perhaps 11 to 17 points of VU-thread time. | Queued. Measure in Chrome first. |
-| 1 | The page's disc chunk cache can hand the game the wrong 256 KB of the disc once all 256 slots are full. | Being fixed 2026-10-13 (planner). |
-| 2 | Game speed is tied to `requestAnimationFrame`, and to the audio device with no fallback: a 50 Hz screen gives 94% speed; a hidden tab stops the game (row 7). | Queued. |
+| 1 | The page's disc chunk cache can hand the game the wrong 256 KB of the disc once all 256 slots are full. | Fixed 2026-10-13, fork `9431274` (`tests/runtime/test_disc_cache.cpp`). |
+| 2 | Game speed is tied to `requestAnimationFrame`, and to the audio device with no fallback: a 50 Hz screen gives 94% speed; a hidden tab stops the game (row 7). | Fixed 2026-10-13, fork `9431274` (`?pace=old` keeps the old waits). Not yet tried on a slow display. |
 | 3 | `tools/port.sh` regenerated the game with recompilers built on 2026-10-10, without the hook check and the gap 012 change. | Fixed 2026-10-13: both rebuilt, `tools/port.sh` brings them up to date first, and the two guard tests run against them by default. |
 | 4 | The VU interpreters and the VU JIT have no automated test; guard tests were skipped by default. | Part done 2026-10-13: the guard tests no longer need a variable, and another workflow is adding interpreter tests. The JIT has none. |
 | 5 | Neither repository has a copy off this machine: the fork's 26 commits and this repo's 64 are not pushed. | Bundles of both made 2026-10-13 (`external/FORK.md`, header). Not pushed: that needs Mark's yes. |
 | 6 | In the JIT, FTOI, ITOF, CLIP, OPMULA and OPMSUB go lane by lane through calls: 6 to 11 points of the VU thread. | Queued. |
 | 7 | Each XGKICK is gathered into a buffer, copied into the render ring and posted as its own message: 8.8% of the VU thread. | Queued. |
-| 8 | Race load plays 32 to 59 ms from an empty audio queue in 4 of 6 runs (row 35). | Queued. Find what holds the thread first. |
-| 9 | Crash clipping: the game stops the song for the crash bed, and the bed alone peaks 1 dB under full scale (row 6). | Being fixed 2026-10-13 (documents). |
-| 10 | Exponential decreases of the SPU2 envelope never reach zero: a released voice can sound for ever at up to 12.5%. | Being fixed 2026-10-13. |
-| 11 | The master-volume multiply wraps in 32 bits: a mix above twice full scale comes out at the opposite rail. | Being fixed 2026-10-13. |
-| 12 | "idle emu" counts time blocked on the renderer as idle; the audio pacing loop has no way out if the worklet stops. | Queued. |
-| 13 | The reverb is about half the mixer's cost; its work-area addresses take 40 64-bit divisions a sample. | Being fixed 2026-10-13. |
+| 8 | Race load plays 32 to 59 ms from an empty audio queue in 4 of 6 runs (row 35). | Counters added (`9431274`: held and disc time apart). Cause still to find. |
+| 9 | Crash clipping: the game stops the song for the crash bed, and the bed alone peaks 1 dB under full scale (row 6). | Fixed 2026-10-13: `gap-011` and `audio-log-002` corrected; the clamp order is fork `1a07150`. |
+| 10 | Exponential decreases of the SPU2 envelope never reach zero: a released voice can sound for ever at up to 12.5%. | Fixed 2026-10-13, fork `1a07150`. |
+| 11 | The master-volume multiply wraps in 32 bits: a mix above twice full scale comes out at the opposite rail. | Fixed 2026-10-13, fork `1a07150`: clamp, master volume, clamp (as PCSX2, DuckStation, Mednafen). |
+| 12 | "idle emu" counts time blocked on the renderer as idle; the audio pacing loop has no way out if the worklet stops. | Fixed 2026-10-13, fork `9431274`: "emu held" is shown apart; the audio wait has a way out. |
+| 13 | The reverb is about half the mixer's cost; its work-area addresses take 40 64-bit divisions a sample. | Fixed 2026-10-13, fork `1a07150`: output bit-identical, about half the reverb's cost. |
 | 14 | About 82% of guest memory accesses in generated code are out-of-line calls. | Queued. Needs a regeneration. |
 | 15 | The EE's own float code (COP1 and COP2 macro mode) still runs on the integer float routines. | Queued, after the VU0 work lands. |
-| 16 | EE timer compare and overflow are detected by equality when the event runs; a late event loses the interrupt. | Being fixed 2026-10-13. |
+| 16 | EE timer compare and overflow are detected by equality when the event runs; a late event loses the interrupt. | Fixed 2026-10-13, fork `d313391`. |
 | 17 | Frame dumps differ because the GPU rasteriser races on frame-buffer feedback (row 11). | Queued. `web-log-003.md` is corrected. |
 | 18 | 795 compute dispatches a frame; the batch is cut about 614 times. | Queued. Large; about 0.5 ms of GPU time at best. |
-| 19 | The texture upload cache keeps one entry: its eviction loop throws out everything before the insert position. | Being fixed 2026-10-13. |
+| 19 | The texture upload cache keeps one entry: its eviction loop throws out everything before the insert position. | Fixed 2026-10-13, fork `f0c99aa`. |
 | 20 | Texture bytes are copied five times across three threads, vertex packets twice. | Queued. One redesign with 7 and 42. |
 | 21 | Main thread: per-primitive overheads and clock reads, 1 to 2% of the thread. | Queued. |
-| 22 | 96 MB of the page's 307 MB is two rings and the cache copy; a ring can wait for ever on an oversized message. | Being fixed 2026-10-13. |
-| 23 | The disc chunk cache fills to 64 MB and takes the heap past 256 MB. | Being fixed 2026-10-13 (planner). |
-| 24 | 112 MB is reserved for two rings and three stacks that need a few MB. | Being fixed 2026-10-13. |
+| 22 | 96 MB of the page's 307 MB is two rings and the cache copy; a ring can wait for ever on an oversized message. | Fixed 2026-10-13, fork `46e093b`: rings 16 + 16 MiB; the page stays at 256 MB. The upload cache copy is not removed. |
+| 23 | The disc chunk cache fills to 64 MB and takes the heap past 256 MB. | Open. The slot count is unchanged; the page no longer grows past 256 MB without it (`web-log-004.md` section 7). |
+| 24 | 112 MB is reserved for two rings and three stacks that need a few MB. | Rings: fixed with 22. Stacks: measured (emulation 53,736 bytes, main 2,208, VU 18,208 used of 16 MB each), not reduced yet. |
 | 25 | 22.0 MB of the 24.9 MB wasm is 225 unit functions; cold units at `-Oz` would cut 3 to 4.6 MB. | Queued. |
-| 26 | The page downloads the game executable a second time as `ps2web.data`. | Queued. |
+| 26 | The page downloads the game executable a second time as `ps2web.data`. | Prepared, fork `9431274`: `PS2_WEB_ELF_FROM_DISC`, off until a page run boots with it. |
 | 27 | The mostly-zero entry tables cost 1.85 MB of memory and 18,402 data segments. | Queued. Needs a regeneration. |
 | 28 | The hook check costs 0.20 MB and the budget bookkeeping about 2 MB of unit code; neither is worth removing. | Nothing to change. Recorded here and in `harness-log-003.md` so the question is not reopened (row 13). |
-| 29 | 176 MB of the 256 MB start size is three fixed reservations; memory grows once in every race load. | Being fixed 2026-10-13 (planner). |
-| 30 | Main thread: about 7% of its time is waking for single queue entries and reading the clock. | Queued. Overlaps 21; do not add the two. |
-| 31 | Every load downloads everything again and cannot reuse compiled code. | Queued. |
-| 32 | Input reaches the game only when a frame is presented; keys stay held when the window loses focus. | Queued. |
+| 29 | 176 MB of the 256 MB start size is three fixed reservations; memory grows once in every race load. | Partly: the page stays at 256 MB (rows 22, 24). `INITIAL_MEMORY` unchanged. |
+| 30 | Main thread: about 7% of its time is waking for single queue entries and reading the clock. | Not changed in `web.cpp`; what would change is in `queue.cpp` and `gs.cpp` (page agent, 2026-10-13). Queued with 21. |
+| 31 | Every load downloads everything again and cannot reuse compiled code. | Nothing to change found: the page already compiles while it downloads. |
+| 32 | Input reaches the game only when a frame is presented; keys stay held when the window loses focus. | Fixed 2026-10-13, fork `9431274` and `web/pad.js`, `web/page.js` (keys let go on blur, card saved on hide). |
 | 33 | The open items were scattered over 20 documents. | Fixed 2026-10-13: this file. |
 | 34 | `gap-009` quotes three instructions of the game's VU microcode. | Ruled by Mark 2026-10-13: game data that is code, or too hard to remake, may be in the repo. The listing stays; no gate rule. |
 | 35 | Stale statements in `FORK.md`, the gap logs, `README.md` and two tools. | Fixed 2026-10-13, except three lines in files other agents held: `gap-009`:62 and 70, `audio-log-002.md`:57, `tools/build-web.sh`:27. |
 | 36 | Gap 001's open question: the 12 seeded-only units. | Closed 2026-10-13 in `gap-001` (row 23). |
-| 37 | The generated hook check is absent for functions the recompiler knows only from an address constant or a single data pointer: 2 of the 19 hooked functions. | Being fixed 2026-10-13. |
-| 38 | Shadow mode files FPU status differences under "scratch" and does not compare VU0 state, `hi1`/`lo1` or `sa`. | Being fixed 2026-10-13. |
+| 37 | The generated hook check is absent for functions the recompiler knows only from an address constant or a single data pointer: 2 of the 19 hooked functions. | Fixed 2026-10-13, fork `f79a015`; takes effect when the game is regenerated. |
+| 38 | Shadow mode files FPU status differences under "scratch" and does not compare VU0 state, `hi1`/`lo1` or `sa`. | Fixed 2026-10-13, fork `e543da1`. |
 | 39 | In the page a PATH3 packet released by MSKPATH3 reaches the GS after the rest of the VIF1 chunk that released it. | Queued. No visible effect today. |
-| 40 | The SPU2 final mix can overflow 32 bits before the master volume. | Being fixed 2026-10-13. The same defect as 11. |
-| 41 | The PATH3 hold buffer has no bound, and a full drain is posted as one ring message. | Being fixed 2026-10-13. |
+| 40 | The SPU2 final mix can overflow 32 bits before the master volume. | Fixed with 11, fork `1a07150`. |
+| 41 | The PATH3 hold buffer has no bound, and a full drain is posted as one ring message. | Fixed 2026-10-13, fork `46e093b`; the wait for room also ends after 2 ms since `4c108df` (a lost futex wake froze the page). |
 | 42 | In the page PATH3 data is copied three times, not two as `web-log-003.md` says (row 15). | Queued. |
 | 43 | A cheaper exact adder exists for the JIT: 23 SIMD instructions instead of 35. | Queued, with 0 (row 3). |
 | 44 | VIF1 on the VU thread: 4% in the command loop; 58% of 35,000 commands a frame are NOPs. | Queued. |

@@ -98,3 +98,52 @@ Everything above was measured on the race as it was before `docs/re/gap-012-vu-f
 | 26 to 28 | an escape past a wreck | -8.1, -9.3, -11.8 | 2.2%, 0.45%, 0.21% |
 
 Over the 24 seconds of race 0.56% of the samples are at full scale, all of it in the seconds where a crash is being shown. Plain driving does not clip and is quieter than in the broken race, where the engine was always near the limiter. So the open point of gap 011 stands on the corrected race: crash and takedown sequences drive core 1's voice sum past full scale. Whether a console does the same depends on the stream and effect volumes the game sets there, which nobody has checked against the game's own code yet.
+
+## After the audit of 2026-10-13
+
+Four things from the audit of that day (its findings 9, 10, 11 with 40, and 13). The code changes are in the fork's `runtime/src/iop/spu2.cpp` and a new header beside it, `spu2_work_area.hpp`, on branch `fixes01`. None changes the saved-state layout. Nobody has listened; a race has not been recorded with them yet.
+
+### What is known about the crash clipping
+
+Read from the traces that already existed (`~/b3/out/audio02/race-reverb.log` and `peaks.log`, both of the race before gap 012); nothing was run.
+
+- **The song is not under the crash bed.** At the crash the game keys off core 1's voices 16 to 21 and keys on 18 to 21 (12.7 s after frame 12300). The song, voices 16 and 17, stays off for the whole bed and is keyed on again 1.6 s after the bed is keyed off. So the two stream volumes `0x3979` and `0x2E14` never sound together, and their ratio is not a mix balance; `docs/re/gap-011-spu2-mix-switches-and-input-area.md` said otherwise in two places and is corrected. The Xbox build does play the song under the bed, at 0.30 against 0.70 (reB3 `docs/RE_MUSIC.md` section 6.3). reB3's own default pauses the song there, as a user request and not as recovered behaviour (its section 6.5).
+- **The bed is nearly at the limit by itself.** Voices 20 and 21 peak at 29,305 and 29,353 through a volume of 29,426 of 32,768: the source is at full scale and the bed leaves 0.96 dB.
+- **24 effect voices are on top of it** in the same half second: 16 on core 1, peaking between 4,700 and 23,400 each, and core 0's dry voices 16 to 23, peaking between 4,800 and 20,400, which come in through core 0's output and core 1's external input at full volume. Both limits are reached: core 1's voice sum, and the final mix.
+- **Still open: the level.** The bed is at 0.90 of full scale where the Xbox build has 0.70. That is 2.2 dB on the loudest source; at 0.70 the bed alone would peak near 22,900. Finding the PS2 twin of the function that sets the stream volumes is still the only check inside the project that `0x3979` is what the game means.
+- **Still open: the corrected race.** It has a recording and no voice trace. That its takedown and near-wreck seconds (the table above) are the bed with the song off is inferred from the one crash traced. One run from the pre-race state with the voice-peak patch kept next to the recordings (`PS2_TRACE_VOICES`) would show it, and is cheaper than a console recording.
+
+### The final mix wrapped at twice full scale
+
+A core's output was `(voices + input + core 0 + reverb return) * master volume >> 15` in 32 bits, clamped afterwards. With the master volume the game uses (`0x3FFF`, which is 32,766 of 32,768) the product does not fit once the sum is beyond 65,540 either way, and the sample came out at the opposite limit: a click of the full range. The recordings have it: `race-fixed.wav` and `race-reverb.wav` at 24.19 s and `full-fixed.wav` at 229.15 s, one or two samples each, on the right channel inside a clipped stretch; `race-corrected.wav` has none. PCSX2 changed the same place because of this game (its pull request 10142, "SPU2: Fix applying master volume", whose stated reason is "Burnout 3 had samples overflowing 16bits").
+
+Now the sum is clamped to 16 bits, the master volume is applied to that, and the result is clamped again. That is the order of PCSX2's SPU2 mixer since that pull request, and of the PlayStation SPU as Mednafen and DuckStation have it (each SPU2 core is built like that SPU); none of the three says it was measured on a console, and it has not been checked against one here. The voice mixes were already clamped before this, where the write-back areas take them.
+
+What it changes: a mix beyond 16 bits now clips at full scale times the master volume. With `0x3FFF` that is +32,765 and -32,766 where it was +32,767 and -32,768, so every clipped sample moves by 1 or 2 towards zero and the few wrapped ones move to their own side; no other sample changes. **"Samples at full scale" in the tables above were counted as plus or minus 32,767 or beyond (`tools/audio-check.py`); a recording made after this change has none, and the count has to be of 32,765 and beyond to compare.** A game with its master volume turned down now clips at that lower level, not at full scale.
+
+Tests (`tests/runtime/test_spu2_mixer.cpp`): three sources at full scale and of one sign come out on their own side, at levels like the crash's too, for both signs; and at half master volume a mix of twice full scale comes out at half scale, on core 0's written-back output as well. 12 checks, all of which failed before.
+
+### Exponential decreases never reached zero
+
+An envelope or volume sweep that falls exponentially takes a step of "step times level over `0x8000`". The mixer divided, which rounds towards zero, so below a level of 4,096 the step was 0: a voice released that way stayed in release for ever at up to 12.5% of full level, and a decay to the lowest sustain level never arrived. Now the step is shifted down 15 bits, which rounds down, so it is at least one unit and the level reaches 0. PSX-SPX writes the rule as a division and does not say how it rounds, but says in the same section that a release ends at 0 and a sweep decreases to 0, which only rounding down gives; PCSX2, Mednafen and DuckStation all shift.
+
+It also makes every exponential fall a little faster all the way down, not only at the end (a release that steps once every 32 samples is at 0 after 7.4 s; before, it stopped at 4,095). Burnout 3 does not use the mode in any state sampled (16 saved states, menu and race: every release and sweep is linear), so nothing should change there. The one setting in those states that can show it is ADSR1 `0x000F`, seen only on idle voices: its single decay step is one unit larger.
+
+Tests: an exponential release follows the rule step for step to 0 and the voice stops reading; a slow one too; a decay reaches sustain level `0x800`; an exponential sweep down reaches 0. 13 checks, 10 of which failed before (the other three check the tests' own set-up). `test_spu2_mixer.cpp` is now 25 tests and 109 checks.
+
+### The reverb is cheaper, with the same output
+
+The reverb worked out each of its 14 work-area addresses per sample with two 64-bit divisions, and its way out ran 20 filter taps over entries that are always 0. Now each offset is wrapped into the work area once per batch and an address is an addition and a compare (`spu2_work_area.hpp`), and the way out runs only the taps that have samples under them: the even ones on the side that just ran, the centre one on the other.
+
+The output is bit for bit the same. `tests/runtime/test_spu2_reverb.cpp` passes as it was (6,400 samples and the work area against the transcription), and has four more tests, 15 tests and 43 checks now: a preset with offsets at and beyond the size of the area, a reflection destination at 0 and all-pass destinations below their sizes, in a work area of an odd size; a work area of two halfwords; a reverb that is not run for one and for three batches and then runs again; and the new address arithmetic against the old division formula, kept in the test, for every size of work area from 2 halfwords to the whole of sound RAM with offsets and sample clocks at the edges of the area and of 32 bits, and for small and random areas with every pair of offsets (92 million addresses in all, half a second).
+
+Measured with the mixer alone (the audit's benchmark, 32-sample batches, nanoseconds per batch, best of 9 and the lowest of 3 runs, Ryzen 9 7950X, native; "before" is the fork at a854891, "after" has all three changes):
+
+| Case | g++ -O2 before | after | clang++ -O2 before | after |
+|---|---|---|---|---|
+| silent, reverb on | 4,051 | 2,757 | 3,010 | 1,885 |
+| 16 + 18 voices, reverb on | 5,442 | 4,157 | 4,456 | 3,394 |
+| 8 + 4 voices, reverb on | 4,643 | 3,367 | 3,579 | 2,511 |
+| 16 + 18 voices, no reverb | 2,608 | 2,642 | 2,057 | 2,113 |
+
+About a quarter of the mixer with the reverb running, and a little under half of the reverb itself. On the page the mixer is 1.5% of the emulation thread, so this is a few tenths of a percent there (an estimate from the native ratio, not measured), and the frame rate does not change. The checksums of the output and of the work area are the same before and after in every case.

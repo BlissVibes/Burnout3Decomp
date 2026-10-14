@@ -131,6 +131,7 @@
 </div></div>
 <script src="pad.js"></script>
 <script src="disc.js"></script>
+<script src="page.js"></script>
 <script>
 const statusEl = document.getElementById('status');
 const CARD_DIR = '/memcard', CARD_FILE = '/memcard/Mcd001.ps2', CARD_BYTES = 8650752;
@@ -144,20 +145,17 @@ function note(text) {
     noteTimer = 0;
   }, 5000);
 }
-let cardTimer = 0;
-function storeCard(then) {
-  clearTimeout(cardTimer);
-  cardTimer = setTimeout(() => {
-    try {
-      FS.syncfs(false, (err) => {
-        if (err) console.warn('memory card: could not write browser storage', err);
-        if (then) then();
-      });
-    } catch (e) {
-      if (then) then();
-    }
-  }, 300);
-}
+const cardSaver = B3Page.cardSaver((done) => {
+  try {
+    FS.syncfs(false, (err) => {
+      if (err) console.warn('memory card: could not write browser storage', err);
+      done();
+    });
+  } catch (e) {
+    done();
+  }
+});
+function storeCard(then) { cardSaver.save(then); }
 document.getElementById('export-card').addEventListener('click', () => {
   let data = null;
   try { data = FS.readFile(CARD_FILE); } catch (e) {}
@@ -266,6 +264,7 @@ function onTouch(e) {
   touchPad = { buttons, x: sx, y: sy, stick };
   touchRoot.querySelectorAll('[data-btn]').forEach((el) => el.classList.toggle('on', (buttons & Number(el.dataset.btn)) !== 0));
   touchRoot.querySelectorAll('[data-dir]').forEach((el) => el.classList.toggle('on', (buttons & Number(el.dataset.dir)) !== 0));
+  pollInput();
 }
 for (const type of ['touchstart', 'touchmove', 'touchend', 'touchcancel']) touchRoot.addEventListener(type, onTouch, { passive: false });
 
@@ -399,47 +398,26 @@ async function startAudio() {
   node.connect(audio.destination);
 }
 
-const keys = new Set();
-const keyMap = { ArrowUp: 4, ArrowRight: 5, ArrowDown: 6, ArrowLeft: 7, KeyZ: 14, KeyX: 13, KeyA: 15, KeyS: 12,
-                 KeyQ: 10, KeyW: 11, Digit1: 8, Digit2: 9, Enter: 3, Backspace: 0 };
-const stickKeys = new Set(['KeyI', 'KeyJ', 'KeyK', 'KeyL']);
-window.addEventListener('keydown', (e) => { if (e.code in keyMap || stickKeys.has(e.code)) { keys.add(e.code); e.preventDefault(); } });
-window.addEventListener('keyup', (e) => { keys.delete(e.code); });
-const padButtons = [[0, 14], [1, 13], [2, 15], [3, 12], [4, 10], [5, 11], [6, 8], [7, 9], [8, 0], [9, 3], [10, 1], [11, 2],
-                    [12, 4], [13, 6], [14, 7], [15, 5]];
-const axis = (v) => B3Pad.toPs2Axis(v);
-let lastPad = -1;
+// The game is told of the pad when a key or a touch changes, on every display refresh and with every frame.
+const input = B3Pad.createInput((buttons, lx, ly, rx, ry) => Module._ps2web_pad(buttons, lx, ly, rx, ry));
 function pollInput() {
-  let buttons = 0, lx = 128, ly = 128, rx = 128, ry = 128;
-  buttons |= touchPad.buttons;
-  for (const k of keys) if (k in keyMap) buttons |= 1 << keyMap[k];
-  if (keys.has('KeyJ')) lx = 0;
-  if (keys.has('KeyL')) lx = 255;
-  if (keys.has('KeyI')) ly = 0;
-  if (keys.has('KeyK')) ly = 255;
-  if (touchPad.stick) {
-    lx = axis(touchPad.x);
-    ly = axis(touchPad.y);
-  }
-  for (const pad of navigator.getGamepads ? navigator.getGamepads() : []) {
-    if (!pad) continue;
-    for (const [index, bit] of padButtons) if (pad.buttons[index] && pad.buttons[index].pressed) buttons |= 1 << bit;
-    if (pad.axes.length >= 4) {
-      const left = B3Pad.applyDeadZone(pad.axes[0], pad.axes[1]);
-      const right = B3Pad.applyDeadZone(pad.axes[2], pad.axes[3]);
-      if (lx === 128) lx = axis(left.x);
-      if (ly === 128) ly = axis(left.y);
-      rx = axis(right.x);
-      ry = axis(right.y);
-    }
-    break;
-  }
-  const state = buttons + lx * 65536 + ly * 16777216 + rx * 4294967296 + ry * 1099511627776;
-  if (state !== lastPad) {
-    lastPad = state;
-    Module._ps2web_pad(buttons, lx, ly, rx, ry);
-  }
+  if (Module.running) input.poll(touchPad, navigator.getGamepads ? navigator.getGamepads() : []);
 }
+window.addEventListener('keydown', (e) => { if (input.keyDown(e.code)) { e.preventDefault(); pollInput(); } });
+window.addEventListener('keyup', (e) => { input.keyUp(e.code); pollInput(); });
+// A key held while the window loses focus would stay pressed in the game: its keyup goes elsewhere.
+function releaseKeys() {
+  input.releaseKeys();
+  pollInput();
+}
+window.addEventListener('blur', releaseKeys);
+// A hidden or closed page may never run its timers again: store a memory card save that is still waiting.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'hidden') return;
+  releaseKeys();
+  cardSaver.flush();
+});
+window.addEventListener('pagehide', () => cardSaver.flush());
 
 // some browsers cannot show a canvas drawn by another GPU (hybrid laptops on Linux), so each adapter draws a few test frames first
 async function canPresent(power) {
@@ -518,11 +496,12 @@ async function chooseGpu() {
   return 'GPU cannot draw to the page, copying frames';
 }
 
-let frames = 0, last = performance.now(), lastGpu = 0, lastEmuIdle = 0, lastRenderIdle = 0, lastVuIdle = 0, lastInterpreted = 0;
+let frames = 0, last = performance.now(), lastGpu = 0, lastEmuIdle = 0, lastEmuHeld = 0, lastRenderIdle = 0, lastVuIdle = 0, lastInterpreted = 0;
 let shown = 0, fresh = false;
 const countShown = () => {
   if (fresh) ++shown;
   fresh = false;
+  pollInput();
   requestAnimationFrame(countShown);
 };
 requestAnimationFrame(countShown);
@@ -660,6 +639,10 @@ var Module = {
   noSurface: params.has('nosurface'),
   noCard: params.has('nocard'),
   presentCopy: params.has('copy'),
+  // ?pace=old: wait for the display and for the audio device as the page did before the fork's host/pace.cpp, to compare the two.
+  paceOld: params.get('pace') === 'old',
+  // The runtime cannot start the game (the disc's executable is not the one the page was built from).
+  ps2Fatal: (text) => { statusEl.textContent = text; },
   print: (text) => console.log(text),
   printErr: (text) => console.log(text),
   setStatus: (text) => {
@@ -715,14 +698,19 @@ var Module = {
       const gpu = Module._ps2web_gpu_ms();
       const memory = (Module.HEAPU8.length / 1048576).toFixed(0);
       const emuIdle = Module._ps2web_idle_ms(0), renderIdle = Module._ps2web_idle_ms(1), vuIdle = Module._ps2web_idle_ms(2), span = now - last;
+      // A runtime older than ps2web_stack_used does not count the held time (it answers 3 with the main thread's figure).
+      const emuHeld = Module._ps2web_stack_used ? Module._ps2web_idle_ms(3) : undefined;
       const interpreted = Module._ps2web_vu_interpreted();
-      statsEl.textContent = 'frame ' + Module._ps2web_frames() + '   ' + (frames * 1000 / span).toFixed(1) + ' fps (' + (shown * 1000 / span).toFixed(0) + ' on screen)   GPU ' + ((gpu - lastGpu) / span * 100).toFixed(0) +
-                            '%   idle emu ' + ((emuIdle - lastEmuIdle) / span * 100).toFixed(0) + '% vu ' + ((vuIdle - lastVuIdle) / span * 100).toFixed(0) +
-                            '% gs ' + ((renderIdle - lastRenderIdle) / span * 100).toFixed(0) +
-                            '%   heap ' + memory + ' MB   audio ' + Module.audioQueuedMs().toFixed(0) + ' ms' +
-                            (interpreted > lastInterpreted ? '   vu1 interpreted ' + Math.round((interpreted - lastInterpreted) * 1000 / span) + '/s' : '');
+      const share = (ms) => (ms === undefined ? undefined : ms / span * 100);
+      statsEl.textContent = B3Page.statsLine({
+        frame: Module._ps2web_frames(), fps: frames * 1000 / span, shown: shown * 1000 / span, gpu: share(gpu - lastGpu),
+        emuIdle: share(emuIdle - lastEmuIdle), vuIdle: share(vuIdle - lastVuIdle), gsIdle: share(renderIdle - lastRenderIdle),
+        emuHeld: share(emuHeld === undefined ? undefined : emuHeld - lastEmuHeld), heapMb: memory, audioMs: Module.audioQueuedMs(),
+        interpreted: (interpreted - lastInterpreted) * 1000 / span,
+      });
       lastInterpreted = interpreted;
       lastEmuIdle = emuIdle;
+      lastEmuHeld = emuHeld;
       lastRenderIdle = renderIdle;
       lastVuIdle = vuIdle;
       lastGpu = gpu;

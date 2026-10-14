@@ -10,7 +10,8 @@
 # A library is searched only for symbols the test leaves undefined, so a test may also define its own.
 #
 # Nothing is written inside the repository: objects and programs go to the build dir
-# (default ${TMPDIR:-/tmp}/b3-unit). CXX and CXXFLAGS are honoured.
+# (default ${TMPDIR:-/tmp}/b3-unit). CXX and CXXFLAGS are honoured; without CXX the compiler is clang++
+# when it is installed, else c++.
 # Exit 0 when everything built and passed, 1 otherwise, 2 for bad arguments.
 set -u
 
@@ -26,8 +27,17 @@ if [ ! -f "$include/ps2/fpu.hpp" ]; then
     echo "no runtime headers at $include" >&2
     exit 2
 fi
-cxx=${CXX:-c++}
-flags=(-std=c++20 -O1 -g -Wall -Wextra ${CXXFLAGS:-} -I "$repo/src" -I "$include" -I "$here")
+# The fork is built with clang, and its vector headers (ps2/vu_ops.hpp, ps2/vu_exact.hpp) are written with
+# clang's builtins: the tests of those print "skipped" under another compiler. So clang++ is used when it
+# is installed and CXX does not say otherwise. A multiply is never fused into an add, as in the fork.
+if [ -n "${CXX:-}" ]; then
+    cxx=$CXX
+elif command -v clang++ > /dev/null 2>&1; then
+    cxx=clang++
+else
+    cxx=c++
+fi
+flags=(-std=c++20 -O1 -g -Wall -Wextra -ffp-contract=off ${CXXFLAGS:-} -I "$repo/src" -I "$include" -I "$here")
 mkdir -p "$build/support" "$build/hooks" || exit 2
 failed=0
 

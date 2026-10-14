@@ -30,6 +30,10 @@ std::vector<std::uint32_t> g_entered;
 std::uint64_t g_preempts = 0;
 bool g_events_inside = false;   // the stand-in reports that the runtime ran events during the call
 int g_bodies = 0;               // how often the stand-in's body ran
+// What else the stand-in leaves behind when a test asks for it: bits set in the FPU status, and the
+// registers of the second multiplier and the shift amount.
+std::uint32_t g_sets_fcr31 = 0, g_sets_sa = 0;
+std::uint64_t g_sets_hi1 = 0, g_sets_lo1 = 0;
 
 // The stand-in for a generated unit: the hook check of a function entry, then the function.
 // v0 = a0 + 1, a byte stored at kCell, a scratch register left behind, five cycles used.
@@ -39,6 +43,10 @@ void unit(ps2::Cpu &c, std::uint32_t address) {
     c.r[2].d[0] = c.r[4].d[0] + 1;
     c.r[8].d[0] = 0x1234;
     ps2::g_ram[kCell] = 0x55;
+    c.fcr31 |= g_sets_fcr31;
+    if (g_sets_hi1) c.hi.d[1] = g_sets_hi1;
+    if (g_sets_lo1) c.lo.d[1] = g_sets_lo1;
+    if (g_sets_sa) c.sa = g_sets_sa;
     c.budget -= 5;
     if (g_events_inside) ++g_preempts;
     c.pc = c.r[31].w[0];
@@ -62,6 +70,24 @@ void stores_another_byte(ps2::Cpu &c) {
 void changes_a_kept_register(ps2::Cpu &c) {
     right(c);
     c.r[16].d[0] ^= 1;
+}
+
+// Right, and it leaves the same scratch register behind as the function does.
+void right_to_the_scratch_register(ps2::Cpu &c) {
+    right(c);
+    c.r[8].d[0] = 0x1234;
+}
+
+void sets_the_condition_bit(ps2::Cpu &c) {
+    right_to_the_scratch_register(c);
+    c.fcr31 |= ps2::kFpuCondition;
+}
+
+void sets_the_second_multiplier_and_the_shift_amount(ps2::Cpu &c) {
+    right(c);
+    c.hi.d[1] = 0x99;
+    c.lo.d[1] = 7;
+    c.sa = 3;
 }
 
 }
@@ -127,6 +153,8 @@ ps2::Cpu fresh(ps2::HookFn fn, std::uint32_t shadow) {
     g_entered.clear();
     g_events_inside = false;
     g_bodies = 0;
+    g_sets_fcr31 = g_sets_sa = 0;
+    g_sets_hi1 = g_sets_lo1 = 0;
     ps2::g_ram[kCell] = 0;
     ps2::Cpu c{};
     c.r[4].d[0] = 5;
@@ -191,7 +219,7 @@ void shadow_mode_runs_both_and_keeps_what_the_recompiled_function_did() {
     CHECK_EQ(ps2::g_ram[kCell], 0x55);
     const std::string text = report();
     CHECK(has(text, "1 calls, 1 compared: 0 wrong"));
-    CHECK(has(text, "v0 differs in 0, f0 in 0, other scratch registers in 1; 0 not compared"));
+    CHECK(has(text, "v0 differs in 0, f0 in 0, fcr31 in 0, other scratch registers in 1; 0 not compared"));
 }
 
 void shadow_mode_reports_a_hook_that_stores_something_else() {
@@ -220,7 +248,72 @@ void shadow_mode_does_not_compare_a_call_the_runtime_ran_events_in() {
     CHECK_EQ(c.r[2].d[0], 6u);
     CHECK_EQ(c.budget, 95);
     CHECK_EQ(ps2::g_ram[kCell], 0x55);
-    CHECK(has(report(), "1 calls, 0 compared: 0 wrong (kept registers or memory), v0 differs in 0, f0 in 0, other scratch registers in 0; 1 not compared"));
+    CHECK(has(report(), "1 calls, 0 compared: 0 wrong (kept registers or memory), v0 differs in 0, f0 in 0, fcr31 in 0, other scratch registers in 0; 1 not compared"));
+}
+
+// The FPU status is a scratch register by the calling convention, but a compare leaves its result there
+// and a divide its sticky flags, and some hooks reproduce both on purpose. Nearly every call differs in
+// some scratch register, so a difference in the status is counted and printed on its own.
+void shadow_mode_counts_a_difference_in_the_fpu_status_on_its_own() {
+    ps2::Cpu c = fresh(&right_to_the_scratch_register, 1);
+    g_sets_fcr31 = ps2::kFpuCondition;         // the function ends with the condition bit set; the hook does not set it
+    printed();
+    unit(c, kFunction);
+    CHECK(has(printed(), "stand_in call 1 fcr31 (recompiled/hook): condition 1/0;"));
+    CHECK(c.fcr31 & ps2::kFpuCondition);       // the recompiled outcome stays
+    CHECK(has(report(), "1 compared: 0 wrong (kept registers or memory), v0 differs in 0, f0 in 0, fcr31 in 1, other scratch registers in 0; 0 not compared"));
+
+    c = fresh(&right_to_the_scratch_register, 1);
+    g_sets_fcr31 = 0x20040;                    // sticky flags only: the condition bit agrees
+    c.fcr31 = ps2::kFpuCondition;
+    printed();
+    unit(c, kFunction);
+    CHECK(has(printed(), "fcr31 (recompiled/hook): flags 20040/0;"));
+    CHECK(has(report(), "fcr31 in 1, other scratch registers in 0"));
+
+    c = fresh(&sets_the_condition_bit, 1);     // a hook that reproduces the bit
+    g_sets_fcr31 = ps2::kFpuCondition;
+    printed();
+    unit(c, kFunction);
+    CHECK(!has(printed(), "[shadow]"));
+    CHECK(has(report(), "1 compared: 0 wrong (kept registers or memory), v0 differs in 0, f0 in 0, fcr31 in 0, other scratch registers in 0; 0 not compared"));
+
+    c = fresh(&right, 1);                      // with another scratch register differing too: two lines, two counts
+    g_sets_fcr31 = ps2::kFpuCondition;
+    printed();
+    unit(c, kFunction);
+    const std::string text = printed();
+    CHECK(has(text, "call 1 fcr31 (recompiled/hook): condition 1/0;"));
+    CHECK(has(text, "call 1 scratch (recompiled/hook): t0 1234/0;"));
+    CHECK(has(report(), "fcr31 in 1, other scratch registers in 1"));
+}
+
+// A hook cannot leave the upper halves of hi and lo (the second multiplier) or the shift amount as the
+// function does without setting them itself, and nothing else would show that it does not: they are
+// compared like the registers a function must keep.
+void shadow_mode_reports_the_second_multiplier_and_the_shift_amount() {
+    ps2::Cpu c = fresh(&right, 1);
+    g_sets_lo1 = 7;
+    printed();
+    unit(c, kFunction);
+    CHECK(has(printed(), "wrong (recompiled/hook): lo1 7/0;"));
+    CHECK_EQ(c.lo.d[1], 7u);
+    CHECK(has(report(), "1 compared: 1 wrong"));
+
+    c = fresh(&right, 1);
+    g_sets_hi1 = 0x99;
+    g_sets_sa = 3;
+    printed();
+    unit(c, kFunction);
+    CHECK(has(printed(), "wrong (recompiled/hook): hi1 99/0 sa 3/0;"));
+    CHECK(has(report(), "1 compared: 1 wrong"));
+
+    c = fresh(&sets_the_second_multiplier_and_the_shift_amount, 1);
+    g_sets_hi1 = 0x99;
+    g_sets_lo1 = 7;
+    g_sets_sa = 3;
+    unit(c, kFunction);
+    CHECK(has(report(), "1 compared: 0 wrong"));
 }
 
 void shadow_mode_compares_every_nth_call_and_the_function_serves_them_all() {
@@ -250,6 +343,8 @@ int main() {
     shadow_mode_reports_a_hook_that_stores_something_else();
     shadow_mode_reports_a_hook_that_changes_a_register_it_must_keep();
     shadow_mode_does_not_compare_a_call_the_runtime_ran_events_in();
+    shadow_mode_counts_a_difference_in_the_fpu_status_on_its_own();
+    shadow_mode_reports_the_second_multiplier_and_the_shift_amount();
     shadow_mode_compares_every_nth_call_and_the_function_serves_them_all();
     unlink(path);
     return check::done("test_hooks");

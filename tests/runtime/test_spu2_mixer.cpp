@@ -268,6 +268,127 @@ void a_playing_voice_in_a_state_of_an_older_version_keeps_playing() {
     CHECK(about(left(), kCore1Voice));
 }
 
+// Where a mix beyond 16 bits ends up with the master volume the fixture sets (0x3FFF, which is 0x7FFE of 0x8000):
+// the mix is clamped first and the master volume applied to that.
+constexpr int kTop = (32767 * 0x7FFE) >> 15, kBottom = -((32768 * 0x7FFE) >> 15);
+
+// Voices at the test level, all playing the block at 0x5000; three of them take a core's voice mix past 16 bits.
+// With sign -1 that block, and so every voice started so far, plays -16384.
+void start_loud_voices(int core, int count, int sign) {
+    for (int v = 0; v < count; ++v) start_voice(core, v, 0x5000, 0x3FFF, 0x3FFF);
+    if (sign < 0) block(0x5000, 7, 0xC);
+}
+
+void a_mix_of_three_times_full_scale_stays_on_its_own_side() {
+    for (int sign = 1; sign >= -1; sign -= 2) {
+        fresh();
+        start_loud_voices(1, 3, sign);             // core 1's voices, clamped to 16 bits
+        start_loud_voices(0, 3, sign);             // core 0's output, clamped too, into core 1
+        fill(0x2400, sign * 32767);                // and core 1's input
+        fill(0x2600, sign * 32767);
+        run(4);
+        CHECK_EQ(left(), sign > 0 ? kTop : kBottom);
+        CHECK_EQ(right(), sign > 0 ? kTop : kBottom);
+    }
+}
+
+void a_mix_just_past_twice_full_scale_stays_on_its_own_side() {
+    // Levels like a crash in a race: the voice mix at the limit, the input at 20400 and core 0 at about 16300.
+    for (int sign = 1; sign >= -1; sign -= 2) {
+        fresh();
+        start_loud_voices(1, 3, sign);
+        start_loud_voices(0, 1, sign);
+        fill(0x2400, sign * 20400);
+        fill(0x2600, sign * 20400);
+        run(4);
+        CHECK_EQ(left(), sign > 0 ? kTop : kBottom);
+        CHECK_EQ(right(), sign > 0 ? kTop : kBottom);
+    }
+}
+
+void a_mix_is_clamped_before_the_master_volume() {
+    fresh();
+    for (int core = 0; core < 2; ++core) {
+        start_loud_voices(core, 3, 1);
+        volume(core, kMvoll, 0x2000);              // half
+        volume(core, kMvolr, 0x6000);              // minus half
+    }
+    reg(1, kMmix, 0x0FF0);                         // core 1 without core 0, so the two cores have the same mix
+    for (std::uint32_t area : {0x2000u, 0x2200u, 0x2400u, 0x2600u}) fill(area, 32767);
+    run(4);
+    // Twice full scale at half volume: half of full scale, as if the mix had been full scale, and not all of it.
+    CHECK_EQ(left(), (32767 * 0x4000) >> 15);
+    CHECK_EQ(right(), -((32767 * 0x4000) >> 15) - 1);
+    CHECK_EQ(ram(0x0800 + last_position()), (32767 * 0x4000) >> 15);   // core 0's output is made the same way
+    CHECK_EQ(ram(0x0A00 + last_position()), -((32767 * 0x4000) >> 15) - 1);
+}
+
+// The published step of an exponential decrease: the step times the level, taken down 15 bits, which rounds down.
+// So the level falls by at least one unit a step and reaches 0.
+int exponential_step(int level, int step) { return level + ((step * level) >> 15); }
+
+void an_exponential_release_falls_by_the_published_steps_to_silence() {
+    fresh();
+    start_voice(1, 0, 0x5000, 0x3FFF, 0x3FFF);
+    reg(1, 0x8, 0x002C);                           // release: exponential, a step of -8 every second sample
+    run(4);
+    CHECK_EQ(reg(1, 0xA), 0x7FFFu);
+    reg32(1, kKeyOff, 1);
+    run(1);
+    CHECK_EQ(reg(1, 0xA), 0x7FFFu - 16 * 8);       // near the top 8 * level / 0x8000 is just under 8: a step of -8, not -7
+    int level = 0x7FFF - 16 * 8, wrong = 0;
+    unsigned batches = 1;
+    while (level > 0 && batches < 3000) {
+        for (int i = 0; i < 16; ++i) level = exponential_step(level, -8);
+        run(1);
+        ++batches;
+        if (reg(1, 0xA) != static_cast<std::uint32_t>(level)) ++wrong;
+    }
+    CHECK_EQ(wrong, 0);
+    CHECK(batches < 1500);                         // within a second
+    CHECK_EQ(reg(1, 0xA), 0u);
+    CHECK_EQ(left(), 0);
+    const std::uint32_t reading = reg(1, 0x1C0 + 10);
+    run(3);
+    CHECK_EQ(reg(1, 0x1C0 + 10), reading);         // the voice is off: it reads no further
+}
+
+void a_slow_exponential_release_ends_too() {
+    fresh();
+    start_voice(1, 0, 0x5000, 0x3FFF, 0x3FFF);
+    reg(1, 0x8, 0x0030);                           // release: exponential, a step of -8 every 32 samples, one a batch
+    run(4);
+    reg32(1, kKeyOff, 1);
+    int level = 0x7FFF, wrong = 0;
+    for (unsigned batch = 0; batch < 15000; ++batch) {
+        level = exponential_step(level, -8);
+        run(1);
+        if (reg(1, 0xA) != static_cast<std::uint32_t>(level)) ++wrong;
+    }
+    CHECK_EQ(wrong, 0);
+    CHECK_EQ(level, 0);                            // ten seconds; the rule is at 0 after 11132 steps, 7.4 s
+    CHECK_EQ(left(), 0);
+}
+
+void an_exponential_decay_reaches_the_lowest_sustain_level() {
+    fresh();
+    start_voice(1, 0, 0x5000, 0x3FFF, 0x3FFF);
+    reg(1, 0x6, 0x00B0);                           // fastest attack, decay by a step of -8 a sample, sustain level 0x800
+    reg(1, 0x8, 0x1FC0);                           // sustain: the slowest increase, as good as held
+    run(1500);
+    CHECK_EQ(reg(1, 0xA), 0x800u);
+}
+
+void an_exponential_sweep_down_reaches_zero() {
+    fresh();
+    reg(0, 5 * 16 + 0x0, 0x3FFF);
+    reg(0, 5 * 16 + 0x0, 0xE02C);                  // sweep down, exponential, a step of -8 a sample
+    run(1);
+    CHECK_EQ(reg(0, 5 * 16 + 0xC), 0x7FFEu - 32 * 8);
+    run(1500);
+    CHECK_EQ(reg(0, 5 * 16 + 0xC), 0u);
+}
+
 void reading_the_input_area_raises_the_address_interrupt() {
     fresh();
     reg(1, kIrqa, 0);
@@ -346,6 +467,13 @@ int main() {
     a_sound_without_a_loop_plays_to_the_end_of_its_last_block();
     a_loop_of_two_blocks_plays_them_in_turn();
     a_playing_voice_in_a_state_of_an_older_version_keeps_playing();
+    a_mix_of_three_times_full_scale_stays_on_its_own_side();
+    a_mix_just_past_twice_full_scale_stays_on_its_own_side();
+    a_mix_is_clamped_before_the_master_volume();
+    an_exponential_release_falls_by_the_published_steps_to_silence();
+    a_slow_exponential_release_ends_too();
+    an_exponential_decay_reaches_the_lowest_sustain_level();
+    an_exponential_sweep_down_reaches_zero();
     a_volume_sweep_runs_while_the_voice_is_stopped();
     a_sweep_keeps_its_pace_through_a_key_on();
     reading_the_input_area_raises_the_address_interrupt();

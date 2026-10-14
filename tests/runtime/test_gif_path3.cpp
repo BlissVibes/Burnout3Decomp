@@ -14,8 +14,14 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
+#include <fstream>
+#include <sstream>
+#include <string>
 #include <vector>
+
+#include <unistd.h>
 
 namespace {
 
@@ -192,6 +198,75 @@ void many_packets_come_out_in_order_one_at_a_time() {
     CHECK_EQ(wrong, 0);
 }
 
+// What is held has no upper limit, and an open PATH3 drains all of it at once. A message of the queue between
+// the threads has one (queue::kMaxPayload), so a long drain goes out as several messages, cut between
+// qwords, with every byte in its place.
+void a_drain_longer_than_one_message_goes_out_in_pieces_in_order() {
+    fresh();
+    const std::uint32_t most = ps2::gs::queue::kMaxPayload / 16;
+    Bytes all;
+    gif::set_path3_mask(true);
+    for (std::uint64_t i = 0; all.size() / 16 < 2 * most + 5000; ++i) {
+        const Bytes p = packet(3, 9000 + static_cast<std::uint32_t>(i) * 7, 0x100000 * (i + 1));
+        send(p);
+        append(all, p);
+    }
+    gif::set_path3_mask(false);                   // the first packet
+    const std::size_t first = g_posts.size();
+    CHECK_EQ(first, 1u);
+    CHECK_EQ(held_flag(), 0u);                    // the rest drains
+    CHECK(g_passed == all);
+    CHECK_EQ(g_posts.size(), first + 3);          // two full messages and the remainder
+    std::uint64_t qwords = 0;
+    int too_long = 0;
+    for (const Post &post : g_posts) {
+        qwords += post.qwords;
+        if (post.qwords > most) ++too_long;
+    }
+    CHECK_EQ(too_long, 0);
+    CHECK_EQ(qwords, all.size() / 16);
+    const Bytes after = packet(1, 3, 0x7000);     // and the stream is still followed packet by packet
+    gif::set_path3_mask(true);
+    send(after);
+    CHECK(g_passed == all);
+    gif::set_path3_mask(false);
+    append(all, after);
+    CHECK(g_passed == all);
+}
+
+std::string g_log;   // stderr goes here for the whole run
+
+// What has been printed to stderr since the last call.
+std::string printed() {
+    static std::streamoff seen = 0;
+    std::fflush(stderr);
+    std::ifstream in(g_log, std::ios::binary);
+    in.seekg(seen);
+    std::ostringstream text;
+    text << in.rdbuf();
+    seen += static_cast<std::streamoff>(text.str().size());
+    return text.str();
+}
+
+bool has(const std::string &text, const char *part) { return text.find(part) != std::string::npos; }
+
+// The hardware would stall a game that sends on and on behind the mask; the runtime holds it all. When that
+// passes 16 MB, far beyond the few megabytes of a frame's uploads, it says so, once.
+void a_hold_that_keeps_growing_is_reported_once() {
+    fresh();
+    const Bytes p = packet(0, 0x7FFF, 0x5000);    // half a megabyte
+    gif::set_path3_mask(true);
+    printed();
+    for (int i = 0; i < 32; ++i) send(p);         // 16 MB to the byte: not more
+    CHECK(!has(printed(), "[gif]"));
+    send(p);
+    CHECK(has(printed(), "[gif] more than 16 MB of PATH3 data is held behind the mask"));
+    for (int i = 0; i < 4; ++i) send(p);
+    CHECK(!has(printed(), "[gif]"));
+    CHECK(g_passed.empty());
+    gif::reset();
+}
+
 void a_saved_state_carries_what_is_held_and_no_more() {
     fresh();
     const Bytes a = packet(0, 50, 0xA000), b = packet(2, 6, 0xB000), c = packet(0, 70, 0xC000);
@@ -225,12 +300,20 @@ void a_saved_state_carries_what_is_held_and_no_more() {
 }
 
 int main() {
+    char path[] = "/tmp/b3-test-gif-path3-XXXXXX";
+    const int file = mkstemp(path);
+    if (file < 0) return 2;
+    g_log = path;
+    dup2(file, 2);
     an_open_path3_passes_data_as_it_comes();
     a_masked_path3_holds_whole_packets_and_each_unmask_lets_one_through();
     a_packet_that_arrives_in_pieces_is_released_whole();
     a_packet_already_on_its_way_finishes_under_the_mask();
     an_open_path3_drains_everything_it_still_holds();
     many_packets_come_out_in_order_one_at_a_time();
+    a_drain_longer_than_one_message_goes_out_in_pieces_in_order();
+    a_hold_that_keeps_growing_is_reported_once();
     a_saved_state_carries_what_is_held_and_no_more();
+    unlink(path);
     return check::done("test_gif_path3");
 }

@@ -120,6 +120,29 @@ class ScanLogTest(unittest.TestCase):
         self.assertEqual(sum(report.unknown_tags.values()), 0)
         self.assertFalse(report.clean(expect_frames=1800))
 
+    # The fork's VU0 check mode (PS2_VU0_CHECK) runs both of its VU0 loops on every call and reports under
+    # its own tag. The register values below are made up.
+    def test_a_vu0_check_run_without_a_difference_is_clean(self):
+        log = ("[vu0-check] 1000000 calls compared, 0 differ\n"
+               "[vu0] mode check: 1358698 calls, 81585253 instructions; fast loop: 0 through the model, 0 calls left to the exact loop, 5 code images, 3532 image lookups\n"
+               "[vu0-check] 1358698 calls compared, 0 differ (0 with a stale image), 0 XGKICK skipped in the fast loop\n")
+        report = scan_log.scan((CLEAN + log).splitlines(True))
+        self.assertEqual(sum(report.unknown_tags.values()), 0)
+        self.assertEqual(sum(report.gaps['vu0_loops_differ'].values()), 0)
+        self.assertTrue(report.clean(expect_frames=1800))
+
+    def test_a_vu0_check_difference_is_a_gap(self):
+        log = ("[vu0-check] call 12 entry 0x0138, 157 instructions (fast loop 157): vf5 fast 3F800000 00000000 40000001 3F800000 exact 3F800000 00000000 40000000 3F800000; memory equal\n"
+               "[vu0-check] call 40 entry 0x0138, 157 instructions (fast loop 157): mac fast 00000010 exact 00000000; memory differs at 0x040\n"
+               "[vu0-check] call 41 entry 0x0A18, 72 instructions (fast loop 72): registers equal; memory equal; the decoded image is not the code in memory\n"
+               "[vu0-check] 1358698 calls compared, 3 differ (1 with a stale image), 0 XGKICK skipped in the fast loop\n")
+        report = scan_log.scan((CLEAN + log).splitlines(True))
+        self.assertEqual(report.gaps['vu0_loops_differ']['entry 0x0138'], 2)
+        self.assertEqual(report.gaps['vu0_loops_differ']['entry 0x0A18'], 1)
+        self.assertEqual(sum(report.unknown_tags.values()), 0)
+        self.assertFalse(report.clean(expect_frames=1800))
+        self.assertIn('vu0_loops_differ  entry 0x0138  x2', scan_log.render(report, 1800))
+
     def test_a_frame_limit_run_that_drew_nothing_is_not_clean(self):
         report = scan_log.scan(NO_DRAW.splitlines(True))
         self.assertEqual(report.primitives, 0)

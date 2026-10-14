@@ -1,6 +1,7 @@
 """The fork's recompiler puts the hook check where a function is entered, and nowhere else.
 
-Runs the fork's `eerecomp` on a made-up three-function program and reads the generated C++.
+Runs the fork's `eerecomp` on a made-up three-function program and reads the generated C++, then on a
+second program whose functions are only ever called through a pointer.
 Needs the tool: B3_EERECOMP names it; without the variable it is the one tools/port.sh translates the game
 with, ~/b3/ps2-web-recomp/build/tools/eerecomp (tests/fork_tools.py). Skipped when neither exists.
 """
@@ -39,22 +40,49 @@ CODE = [
 ]
 
 
-def elf():
-    code = b''.join(struct.pack('<I', w) for w in CODE)
+def elf(words=CODE):
+    code = b''.join(struct.pack('<I', w) for w in words)
     offset = 0x100
     header = b'\x7fELF\x01\x01\x01' + bytes(9) + struct.pack('<HHIIIIIHHHHHH', 2, 8, 1, MAIN, 52, 0, 0, 52, 32, 1, 40, 0, 0)
     segment = struct.pack('<IIIIIIII', 1, offset, BASE, BASE, len(code), len(code), 5, 16)
     return (header + segment).ljust(offset, b'\0') + code
 
 
-@unittest.skipUnless(EERECOMP, fork_tools.missing('B3_EERECOMP', 'eerecomp'))
-class HookCheckTest(unittest.TestCase):
+def la_a0(address):
+    """lui a0, high; addiu a0, a0, low: the address as a constant in the code."""
+    low = address & 0xFFFF
+    return [0x3C040000 | (((address - (low - 0x10000 if low & 0x8000 else low)) >> 16) & 0xFFFF), 0x24840000 | low]
+
+
+# A function the program only hands on as a pointer (its address is a constant in the code), one whose
+# address is only a word in the data, and an address in the data that is not the start of a function.
+# The recompiler finds all three as entries. main and called are found by the call.
+CALLBACK, VIA_DATA, CALLED = BASE + 0x18, BASE + 0x28, BASE + 0x34
+INNER = CALLED + 4
+POINTED = la_a0(CALLBACK) + [                             # 0x00 main: a0 = callback
+    jal(CALLED), NOP,                                     # 0x08
+    JR_RA, NOP,                                           # 0x10
+    0x24020001, JR_RA, NOP,                               # 0x18 callback: addiu v0, zero, 1
+    NOP,                                                  # 0x24 padding, never run
+    0x24020002, JR_RA, NOP,                               # 0x28 via_data: addiu v0, zero, 2
+    0x2484FFFF,                                           # 0x34 called: addiu a0, a0, -1
+    0x2484FFFF,                                           # 0x38 inner: the same again, in the middle of called
+    JR_RA, NOP,                                           # 0x3C
+    VIA_DATA,                                             # 0x44 data: a function pointer
+    INNER,                                                # 0x48 data: an address inside a function
+]
+
+
+class Generated(unittest.TestCase):
+    """The C++ the recompiler writes for one made-up program."""
+    WORDS = None
+
     @classmethod
     def setUpClass(cls):
         cls.tmp = tempfile.TemporaryDirectory()
-        path = os.path.join(cls.tmp.name, 'three.elf')
+        path = os.path.join(cls.tmp.name, 'made_up.elf')
         with open(path, 'wb') as f:
-            f.write(elf())
+            f.write(elf(cls.WORDS))
         entries = os.path.join(cls.tmp.name, 'entries.txt')
         open(entries, 'w').close()
         out = os.path.join(cls.tmp.name, 'gen')
@@ -77,6 +105,14 @@ class HookCheckTest(unittest.TestCase):
         self.assertEqual(len(found), 1, 'one switch arm for 0x%08X, got %r' % (address, found))
         return found[0]
 
+    def assertOffered(self, address):
+        self.assertRegex(self.arm(address), r'if \(g_hooks\) \[\[unlikely\]\] \{ if \(enter\(c, 0x%08Xu?\)\) return; \} goto' % address)
+
+
+@unittest.skipUnless(EERECOMP, fork_tools.missing('B3_EERECOMP', 'eerecomp'))
+class HookCheckTest(Generated):
+    WORDS = CODE
+
     def test_a_function_entered_through_the_unit_is_offered_to_the_hooks(self):
         for address in (MAIN, COUNTER, LEAF):
             self.assertRegex(self.arm(address), r'if \(g_hooks\) \[\[unlikely\]\] \{ if \(enter\(c, 0x%08Xu?\)\) return; \} goto' % address)
@@ -93,6 +129,26 @@ class HookCheckTest(unittest.TestCase):
         label = re.search(r'^%s:\n(.*)$' % re.escape(loop.group(1)), self.text, re.M)
         self.assertIsNotNone(label)
         self.assertNotIn('enter(', label.group(1))
+
+
+@unittest.skipUnless(EERECOMP, fork_tools.missing('B3_EERECOMP', 'eerecomp'))
+class PointedFunctionTest(Generated):
+    """Functions the recompiler knows only because something points at them."""
+    WORDS = POINTED
+
+    def test_a_function_known_only_from_an_address_in_the_code_is_offered_to_the_hooks(self):
+        self.assertOffered(CALLBACK)
+
+    def test_a_function_known_only_from_a_pointer_in_the_data_is_offered_to_the_hooks(self):
+        self.assertOffered(VIA_DATA)          # it starts after a return and a word of padding
+
+    def test_an_address_inside_a_function_is_an_entry_without_the_check(self):
+        self.assertNotIn('enter(', self.arm(INNER))
+
+    def test_the_functions_found_by_a_call_keep_the_check_and_nothing_else_gets_one(self):
+        self.assertOffered(BASE)
+        self.assertOffered(CALLED)
+        self.assertEqual(self.text.count('enter('), 4)
 
 
 if __name__ == '__main__':

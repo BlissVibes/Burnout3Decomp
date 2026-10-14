@@ -15,6 +15,9 @@ The known gap strings come from ps2-web-recomp's runtime; any other
 fails the run, so a new error string cannot pass silently. Tags may contain
 hyphens ("[iop-tty]", the IOP modules' own text output, and "[iop-io]" are
 known, as is "[loadfile]", one line per IOP module the game loads).
+"[vu0-check]" is the runtime's VU0 check mode (PS2_VU0_CHECK), which runs both
+of its VU0 loops on every call: its counts are known lines, and a line that
+reports a call on which the two loops differed is a gap.
 """
 import collections
 import re
@@ -26,12 +29,13 @@ PATTERNS = {
     'ipu_unimplemented': re.compile(r'^\[ipu\] command (0x[0-9A-Fa-f]+) is not implemented'),
     'vu1_cmsar1': re.compile(r'^\[vu1\] start at (0x[0-9A-Fa-f]+) through CMSAR1'),
     'io_unsupported': re.compile(r'^\[io\] open (\S+) .* on unsupported device'),
+    'vu0_loops_differ': re.compile(r'^\[vu0-check\] call \d+ (entry 0x[0-9A-Fa-f]+)'),
 }
 HALT = re.compile(r'^\[ee\] halted: (.*)$')
 FRAME_LIMIT = 'frame limit reached'
 TAG = re.compile(r'^\[([a-z0-9]+(?:-[a-z0-9]+)*)\]')
 KNOWN_TAGS = {'sys', 'iop', 'ipu', 'vu1', 'io', 'ee', 'disc', 'web', 'gpu', 'gs', 'spu2', 'dma', 'sif', 'mc', 'vu0', 'vif', 'cdvd', 'kernel', 'thread',
-              'frame', 'dmac', 'gif', 'sema', 'vif0', 'vif1', 'loadfile', 'iop-tty', 'iop-io'}
+              'frame', 'dmac', 'gif', 'sema', 'vif0', 'vif1', 'loadfile', 'iop-tty', 'iop-io', 'vu0-check'}
 STOPPED = re.compile(r'^\[ee\] stopped after (\d+) frames')
 PRIMITIVES = re.compile(r'^\[gs\] (\d+) primitives drawn')
 

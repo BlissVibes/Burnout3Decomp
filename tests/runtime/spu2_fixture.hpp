@@ -55,7 +55,7 @@ constexpr std::uint32_t kRegisters = 0x1F900000u;
 constexpr unsigned kBatch = 32, kRing = 0x200;
 // Registers of one core.
 constexpr std::uint32_t kVmixl = 0x188, kVmixel = 0x18C, kVmixr = 0x190, kVmixer = 0x194, kMmix = 0x198, kAttr = 0x19A, kIrqa = 0x19C, kKeyOn = 0x1A0,
-                        kAdmas = 0x1B0;
+                        kKeyOff = 0x1A4, kAdmas = 0x1B0;
 // Volumes of one core.
 constexpr std::uint32_t kMvoll = 0x0, kMvolr = 0x2, kAvoll = 0x8, kAvolr = 0xA, kBvoll = 0xC, kBvolr = 0xE;
 // The test voice plays a constant 16384, which the four-point interpolation passes at 16318 (its four weights
