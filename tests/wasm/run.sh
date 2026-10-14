@@ -5,6 +5,7 @@
 # usage: tests/wasm/run.sh <fork path> [build dir]
 #
 # The tests are tests/unit/test_vu_exact.cpp (the arithmetic on host floats against the integer model),
+# tests/unit/test_vu_macro.cpp (the EE's COP2 macro-mode instructions on it against the integer model),
 # tests/runtime/test_vu0_loop.cpp (the fast VU0 loop against the exact one) and tests/runtime/test_vu1_jit.cpp
 # (the VU1 JIT, which exists only in WebAssembly, against the fast interpreter's arithmetic), built from the
 # same sources as tests/unit/run.sh and tests/runtime/run.sh build them, a runtime test with the fork sources
@@ -90,7 +91,7 @@ Module.preRun = [() => {
 }];
 EOF
 
-for source in "$tests/unit/test_vu_exact.cpp" "$tests/runtime/test_vu0_loop.cpp" "$tests/runtime/test_vu1_jit.cpp"; do
+for source in "$tests/unit/test_vu_exact.cpp" "$tests/unit/test_vu_macro.cpp" "$tests/runtime/test_vu0_loop.cpp" "$tests/runtime/test_vu1_jit.cpp"; do
     name=$(basename "$source" .cpp)
     flags=(-Wall -Wextra ${CXXFLAGS:-} -I "$fork/runtime/include" -I "$tests/unit")
     # A test may name the builds it runs in ("// wasm-builds: page" for code that needs the page's threads)

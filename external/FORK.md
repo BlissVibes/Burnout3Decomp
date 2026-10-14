@@ -4,7 +4,7 @@
 - Our fork: https://github.com/BlissVibes/ps2-web-recomp, branch `burnout3`
 - Pinned commit: `17a5eee43eb013d43f26ace6dbff5139e5e8043c` (upstream `17a5eee43eb013d43f26ace6dbff5139e5e8043c`, 2026-10-10).
   This is the upstream commit our changes sit on, not the commit a build needs.
-- Fork head: `dbadb67` on 2026-10-14, 40 commits on the pinned one. A build needs this commit.
+- Fork head: `9ca5587` on 2026-10-14, 45 commits on the pinned one. A build needs this commit.
   `git -C ~/b3/ps2-web-recomp log --oneline 17a5eee..burnout3` lists them and is right when this line is stale.
 - Not pushed (checked 2026-10-13 with `git ls-remote --heads origin`). GitHub has only `main` at `17a5eee`
   for the fork: branch `burnout3` exists in the local clone alone, and the clone in `tools/wsl-setup.sh`
@@ -304,3 +304,20 @@ so the fork lives outside the repo and is pinned here instead.
     sleeps on its waiting flag, which ends the lost wakes of `4c108df`. Page only, except the
     XGKICK path. `PS2_RING_EACH=1` posts each piece on its own. Commit `dbadb67`. Tests
     `tests/runtime/test_gs_ring.cpp`, `test_vif_path3_order.cpp`.
+- The audit's third round (2026-10-14), made on branches `mem01` and `cg01` and picked onto `burnout3`:
+  - `gpu: neighbouring blur strips share one copy and one raster dispatch`: `runtime/src/gs/gpu/gpu.cpp`.
+    Same frames (byte-identical dumps); about 48 fewer dispatches a frame. `PS2_NO_FEEDBACK_RUNS=1`
+    turns it off. Commit `f5e47f1`.
+  - `web host: smaller stacks, 192 MB start memory, 96 disc slots`: `CMakeLists.txt`, `host/web.cpp`,
+    `host/disc_cache.hpp`. Page only. Commit `c9e15c3`.
+  - `ps2run --disc-log`; `scripts/disc_replay.cpp` replays such a log against the page's disc cache:
+    `host/main.cpp`, `scripts/disc_replay.cpp`. Commit `0baf222`.
+  - `build: per-unit tiers for generated code; guest memory access inlined in the hot units`:
+    `CMakeLists.txt`, `runtime/include/ps2/memory.hpp`. `PS2_HOT_UNITS`, `PS2_WARM_UNITS`,
+    `PS2_COLD_UNIT_OPTIONS`, empty by default; Burnout 3's lists are this repo's `tools/units.txt`.
+    Commit `e0ba647`.
+  - `recomp, vu: compact entry tables; COP2 macro arithmetic on the exact host-float forms`:
+    `recomp/codegen.cpp`, `runtime/include/ps2/generated.hpp`, `vu.hpp`, `vu_macro.hpp`. Generated
+    code must be regenerated (done for Burnout 3 on 2026-10-14; it also brings the hook checks of
+    `f79a015`). Bit-identical results. Commit `9ca5587`. Tests `tests/test_recomp_entry_table.py`,
+    `tests/unit/test_vu_macro.cpp`.

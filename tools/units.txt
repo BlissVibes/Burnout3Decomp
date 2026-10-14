@@ -1,0 +1,120 @@
+# How each unit of the recompiled game code (generated/burnout3/unit_XXXX.cpp) is compiled for the page.
+# tools/build-web.sh reads it (UNITS=none builds every unit the same way). A unit is 16 KiB of the game's
+# code. The lists come from profiles: the page's emulation thread in a race (Chrome, frames 12650 to 13400)
+# and native runs of the boot, the profile dialogs, the main menu and World Tour's event map.
+#   hot   compiled at -O3 with the guest loads and stores inlined (PS2_INLINE_MEMORY): the units the race
+#         spends its time in, 30 by self time plus helper time in the race, and the hottest of the menus
+#   warm  compiled at -O3: the rest of the race's 100 busiest units, and every unit with 1% or more of the
+#         game code's samples in a native run
+#   (every unit not listed is compiled for size, -Oz: code those profiles ran little or not at all; in the
+#   race it is 0.35% of the emulation thread)
+# Speed only: a unit in the wrong list runs the same code, faster or slower.
+hot unit_005A
+hot unit_0047
+hot unit_0048
+hot unit_005C
+hot unit_007E
+hot unit_003C
+hot unit_0033
+hot unit_005D
+hot unit_0046
+hot unit_00AF
+hot unit_0011
+hot unit_0030
+hot unit_00A2
+hot unit_006F
+hot unit_0031
+hot unit_0012
+hot unit_000F
+hot unit_0055
+hot unit_0018
+hot unit_0063
+hot unit_0082
+hot unit_0058
+hot unit_0080
+hot unit_0009
+hot unit_0007
+hot unit_0034
+hot unit_0010
+hot unit_0057
+hot unit_0045
+hot unit_00A1
+hot unit_0001
+hot unit_00AD
+hot unit_00C7
+warm unit_0002
+warm unit_0003
+warm unit_0006
+warm unit_0008
+warm unit_000A
+warm unit_000B
+warm unit_000C
+warm unit_000D
+warm unit_0013
+warm unit_0014
+warm unit_0015
+warm unit_0016
+warm unit_0017
+warm unit_0019
+warm unit_001C
+warm unit_0021
+warm unit_0026
+warm unit_0027
+warm unit_0029
+warm unit_002A
+warm unit_002B
+warm unit_002D
+warm unit_002E
+warm unit_002F
+warm unit_0035
+warm unit_0037
+warm unit_0038
+warm unit_003D
+warm unit_0042
+warm unit_0043
+warm unit_0044
+warm unit_0049
+warm unit_004A
+warm unit_004B
+warm unit_0050
+warm unit_0052
+warm unit_0054
+warm unit_0059
+warm unit_005E
+warm unit_0060
+warm unit_0061
+warm unit_0062
+warm unit_0064
+warm unit_0065
+warm unit_0066
+warm unit_0069
+warm unit_006B
+warm unit_006C
+warm unit_006D
+warm unit_006E
+warm unit_0079
+warm unit_007C
+warm unit_007D
+warm unit_007F
+warm unit_0081
+warm unit_0089
+warm unit_008B
+warm unit_008C
+warm unit_008D
+warm unit_008F
+warm unit_0092
+warm unit_0099
+warm unit_009A
+warm unit_009D
+warm unit_00A0
+warm unit_00AC
+warm unit_00B3
+warm unit_00B4
+warm unit_00B5
+warm unit_00B6
+warm unit_00B7
+warm unit_00B8
+warm unit_00BE
+warm unit_00BF
+warm unit_00CE
+warm unit_00D1

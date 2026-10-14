@@ -77,22 +77,22 @@ The audit kept 46 findings and refuted 2. The index is the audit's. "Being fixed
 | 11 | The master-volume multiply wraps in 32 bits: a mix above twice full scale comes out at the opposite rail. | Fixed 2026-10-13, fork `1a07150`: clamp, master volume, clamp (as PCSX2, DuckStation, Mednafen). |
 | 12 | "idle emu" counts time blocked on the renderer as idle; the audio pacing loop has no way out if the worklet stops. | Fixed 2026-10-13, fork `9431274`: "emu held" is shown apart; the audio wait has a way out. |
 | 13 | The reverb is about half the mixer's cost; its work-area addresses take 40 64-bit divisions a sample. | Fixed 2026-10-13, fork `1a07150`: output bit-identical, about half the reverb's cost. |
-| 14 | About 82% of guest memory accesses in generated code are out-of-line calls. | Queued. Needs a regeneration. |
-| 15 | The EE's own float code (COP1 and COP2 macro mode) still runs on the integer float routines. | Queued, after the VU0 work lands. |
+| 14 | About 82% of guest memory accesses in generated code are out-of-line calls. | Fixed 2026-10-14, fork `e0ba647` with `tools/units.txt`: the 33 hottest units call no ld/st helper. |
+| 15 | The EE's own float code (COP1 and COP2 macro mode) still runs on the integer float routines. | Fixed for COP2 macro mode 2026-10-14, fork `9ca5587` (about twice as fast, bit-identical). COP1 stays on the integer routines: the exact forms were slower there. |
 | 16 | EE timer compare and overflow are detected by equality when the event runs; a late event loses the interrupt. | Fixed 2026-10-13, fork `d313391`. |
 | 17 | Frame dumps differ because the GPU rasteriser races on frame-buffer feedback (row 11). | Fixed 2026-10-14, fork `01ecfae`: GPU frames repeatable (20 of 20); the blur reads the old memory. |
-| 18 | 795 compute dispatches a frame; the batch is cut about 614 times. | Not done: the feedback fix adds about 103 copy dispatches a frame; a shared copy per run of strips is the next cut. |
+| 18 | 795 compute dispatches a frame; the batch is cut about 614 times. | Partly 2026-10-14, fork `f5e47f1`: neighbouring blur strips share a copy and a dispatch (about 48 fewer a frame). |
 | 19 | The texture upload cache keeps one entry: its eviction loop throws out everything before the insert position. | Fixed 2026-10-13, fork `f0c99aa`. |
 | 20 | Texture bytes are copied five times across three threads, vertex packets twice. | Mostly fixed 2026-10-14, fork `dbadb67`; the VU thread's relay copy of PATH3 (about 1.6% of it) stays. |
-| 21 | Main thread: per-primitive overheads and clock reads, 1 to 2% of the thread. | Partly 2026-10-14, fork `dbadb67`: wake-ups and clock reads; the per-primitive items (1 to 2%) are left. |
+| 21 | Main thread: per-primitive overheads and clock reads, 1 to 2% of the thread. | Wake-ups and clock reads fixed (`dbadb67`); the per-primitive items measured at 0.005 ms a frame and left (2026-10-14). |
 | 22 | 96 MB of the page's 307 MB is two rings and the cache copy; a ring can wait for ever on an oversized message. | Fixed 2026-10-13, fork `46e093b`: rings 16 + 16 MiB; the page stays at 256 MB. The upload cache copy is not removed. |
-| 23 | The disc chunk cache fills to 64 MB and takes the heap past 256 MB. | Open. The slot count is unchanged; the page no longer grows past 256 MB without it (`web-log-004.md` section 7). |
-| 24 | 112 MB is reserved for two rings and three stacks that need a few MB. | Rings: fixed with 22. Stacks: measured (emulation 53,736 bytes, main 2,208, VU 18,208 used of 16 MB each), not reduced yet. |
-| 25 | 22.0 MB of the 24.9 MB wasm is 225 unit functions; cold units at `-Oz` would cut 3 to 4.6 MB. | Queued. |
+| 23 | The disc chunk cache fills to 64 MB and takes the heap past 256 MB. | Fixed 2026-10-14, fork `c9e15c3`: 96 slots (24 MB) from a replay of the route's reads; about 0.1 s more disc waiting over boot and menus, none in the race. |
+| 24 | 112 MB is reserved for two rings and three stacks that need a few MB. | Fixed 2026-10-14, fork `c9e15c3`: stacks 1, 1 and 8 MB. |
+| 25 | 22.0 MB of the 24.9 MB wasm is 225 unit functions; cold units at `-Oz` would cut 3 to 4.6 MB. | Fixed 2026-10-14, fork `e0ba647`: cold units at -Oz; the page is 626 KB smaller (510 KB gzipped) with the other changes. |
 | 26 | The page downloads the game executable a second time as `ps2web.data`. | Prepared, fork `9431274`: `PS2_WEB_ELF_FROM_DISC`, off until a page run boots with it. |
-| 27 | The mostly-zero entry tables cost 1.85 MB of memory and 18,402 data segments. | Queued. Needs a regeneration. |
+| 27 | The mostly-zero entry tables cost 1.85 MB of memory and 18,402 data segments. | Fixed 2026-10-14, fork `9ca5587`: 29 data segments instead of 18,406, no 542 KB initialiser. |
 | 28 | The hook check costs 0.20 MB and the budget bookkeeping about 2 MB of unit code; neither is worth removing. | Nothing to change. Recorded here and in `harness-log-003.md` so the question is not reopened (row 13). |
-| 29 | 176 MB of the 256 MB start size is three fixed reservations; memory grows once in every race load. | Partly: the page stays at 256 MB (rows 22, 24). `INITIAL_MEMORY` unchanged. |
+| 29 | 176 MB of the 256 MB start size is three fixed reservations; memory grows once in every race load. | Fixed 2026-10-14, fork `c9e15c3`: 192 MB start memory; the page stays there (heap top 167 MB). |
 | 30 | Main thread: about 7% of its time is waking for single queue entries and reading the clock. | Fixed 2026-10-14, fork `dbadb67` (the wait is timed in JavaScript; far fewer wakes). Main thread 58% idle in Chrome (was 52%). |
 | 31 | Every load downloads everything again and cannot reuse compiled code. | Nothing to change found: the page already compiles while it downloads. |
 | 32 | Input reaches the game only when a frame is presented; keys stay held when the window loses focus. | Fixed 2026-10-13, fork `9431274` and `web/pad.js`, `web/page.js` (keys let go on blur, card saved on hide). |
@@ -100,7 +100,7 @@ The audit kept 46 findings and refuted 2. The index is the audit's. "Being fixed
 | 34 | `gap-009` quotes three instructions of the game's VU microcode. | Ruled by Mark 2026-10-13: game data that is code, or too hard to remake, may be in the repo. The listing stays; no gate rule. |
 | 35 | Stale statements in `FORK.md`, the gap logs, `README.md` and two tools. | Fixed 2026-10-13, except three lines in files other agents held: `gap-009`:62 and 70, `audio-log-002.md`:57, `tools/build-web.sh`:27. |
 | 36 | Gap 001's open question: the 12 seeded-only units. | Closed 2026-10-13 in `gap-001` (row 23). |
-| 37 | The generated hook check is absent for functions the recompiler knows only from an address constant or a single data pointer: 2 of the 19 hooked functions. | Fixed 2026-10-13, fork `f79a015`; takes effect when the game is regenerated. |
+| 37 | The generated hook check is absent for functions the recompiler knows only from an address constant or a single data pointer: 2 of the 19 hooked functions. | Fixed 2026-10-13, fork `f79a015`; in effect since the regeneration of 2026-10-14. |
 | 38 | Shadow mode files FPU status differences under "scratch" and does not compare VU0 state, `hi1`/`lo1` or `sa`. | Fixed 2026-10-13, fork `e543da1`. |
 | 39 | In the page a PATH3 packet released by MSKPATH3 reaches the GS after the rest of the VIF1 chunk that released it. | Fixed 2026-10-14, fork `dbadb67` (`test_vif_path3_order.cpp`). |
 | 40 | The SPU2 final mix can overflow 32 bits before the master volume. | Fixed with 11, fork `1a07150`. |
